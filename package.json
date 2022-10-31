@@ -1,0 +1,146 @@
+{
+    "name": "eemblang",
+    "displayName": "EEmbLang",
+    "description": "EEmbLang Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
+    "version": "0.0.1",
+    "icon": "icon.png",
+    "repository": {
+        "url": "https://github.com/YouTooLife/eemblang.git",
+        "type": "git"
+    },
+    "engines": {
+        "vscode": "^1.68.0"
+    },
+    "keywords": [
+        "eemblang"
+    ],
+    "categories": [
+        "Programming Languages",
+        "Snippets",
+        "Linters",
+        "Debuggers",
+        "Formatters",
+        "Testing",
+        "Other"
+    ],
+    "activationEvents": [
+        "onCommand:eemblang.start",
+        "onFileSystem:memfs",
+        "onCommand:memfs.workspaceInit",
+        "onCommand:memfs.init",
+        "onCommand:memfs.reset"
+    ],
+    "main": "./dist/extension.js",
+    "scripts": {
+        "vscode:prepublish": "npm run package",
+        "compile": "webpack",
+        "watch": "webpack --watch",
+        "package": "webpack --mode production --devtool hidden-source-map",
+        "compile-tests": "tsc -p . --outDir out",
+        "watch-tests": "tsc -p . -w --outDir out",
+        "pretest": "npm run compile-tests && npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.72.0",
+        "@types/glob": "^8.0.0",
+        "@types/mocha": "^10.0.0",
+        "@types/node": "16.x",
+        "@typescript-eslint/eslint-plugin": "^5.38.1",
+        "@typescript-eslint/parser": "^5.38.1",
+        "eslint": "^8.24.0",
+        "glob": "^8.0.3",
+        "mocha": "^10.0.0",
+        "typescript": "^4.8.4",
+        "ts-loader": "^9.4.1",
+        "webpack": "^5.74.0",
+        "webpack-cli": "^4.10.0",
+        "@vscode/test-electron": "^2.1.5",
+        "http-proxy-agent": "^2.1.0",
+        "https-proxy-agent": "^2.2.4",
+        "mkdirp": "^1.0.3",
+        "tmp": "0.2.1",
+        "yauzl": "^2.10.0"
+    },
+    "contributes": {
+        "languages": [
+            {
+                "id": "eemblang",
+                "aliases": [
+                    "EEmbLang",
+                    "eemblang",
+                    "EasyEmbLang",
+                    "EasyLang"
+                ],
+                "extensions": [
+                    ".es"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "eemblang",
+                "scopeName": "source.es",
+                "path": "./syntaxes/eemblang.tmLanguage.json"
+            }
+        ],
+        "commands": [
+            {
+                "command": "eemblang.start",
+                "title": "Start new EEmbLang Project",
+                "category": "Programming Languages"
+            },
+            {
+                "command": "memfs.workspaceInit",
+                "title": "Setup Workspace",
+                "category": "MemFS"
+            },
+            {
+                "command": "memfs.init",
+                "title": "Create Files",
+                "category": "MemFS"
+            },
+            {
+                "command": "memfs.reset",
+                "title": "Delete Files",
+                "category": "MemFS"
+            },
+            {
+                "command": "memfs.deleteFile",
+                "title": "Delete \"file.txt\"",
+                "category": "MemFS"
+            },
+            {
+                "command": "memfs.addFile",
+                "title": "Add \"file.txt\"",
+                "category": "MemFS"
+            }
+        ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "memfs.init",
+                    "when": "workbenchState == workspace"
+                },
+                {
+                    "command": "memfs.reset",
+                    "when": "workbenchState == workspace"
+                },
+                {
+                    "command": "memfs.deleteFile",
+                    "when": "workbenchState == workspace"
+                },
+                {
+                    "command": "memfs.addFile",
+                    "when": "workbenchState == workspace"
+                },
+                {
+                    "command": "memfs.workspaceInit",
+                    "when": "workbenchState != workspace"
+                }
+            ]
+        }
+    }
+}

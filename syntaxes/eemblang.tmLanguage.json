@@ -1,0 +1,453 @@
+{
+	"name": "EEmbLang",
+	"scopeName": "source.es",
+	"patterns": [
+		{
+			"comment": "Implementation",
+			"begin": "\\b(impl)\\b",
+			"end": "\\{",
+			"beginCaptures": {
+				"1": {
+					"name": "storage.type.eemblang"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#block_comment"
+				},
+				{
+					"include": "#line_comment"
+				},
+				{
+					"include": "#core_types"
+				},
+				{
+					"include": "#core_marker"
+				},
+				{
+					"include": "#core_traits"
+				},
+				{
+					"include": "#std_types"
+				},
+				{
+					"include": "#std_traits"
+				},
+				{
+					"include": "#type_params"
+				},
+				{
+					"name": "storage.type.eemblang",
+					"match": "\\bfor\\b"
+				},
+				{
+					"include": "#type"
+				}
+			]
+		},
+		{
+			"include": "#block_doc_comment"
+		},
+		{
+			"include": "#block_comment"
+		},
+		{
+			"include": "#line_doc_comment"
+		},
+		{
+			"include": "#line_comment"
+		},
+		{
+			"comment": "Attribute",
+			"name": "meta.attribute.es",
+			"begin": "@(\\[\\w*)",
+			"end": "\\]",
+			"captures": {
+				"1": {
+					"name": "entity.name.function.attribute.eemblang"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#string_literal"
+				},
+				{
+					"include": "#block_doc_comment"
+				},
+				{
+					"include": "#block_comment"
+				},
+				{
+					"include": "#line_doc_comment"
+				},
+				{
+					"include": "#line_comment"
+				}
+			]
+		},
+		{
+			"comment": "Single-quote string literal (character)",
+			"name": "string.quoted.single.eemblang",
+			"match": "'([^'\\\\]|\\\\(0x[0-9A-Fa-f]{2}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.))'"
+		},
+		{
+			"include": "#string_literal"
+		},
+		{
+			"include": "#raw_string_literal"
+		},
+		{
+			"comment": "Floating point literal (fraction)",
+			"name": "constant.numeric.float.eemblang",
+			"match": "\\b[0-9][0-9_]*\\.[0-9][0-9]*([eE][+-]?[0-9_]+)?(f)?\\b"
+		},
+		{
+			"comment": "Floating point literal (exponent)",
+			"name": "constant.numeric.float.eemblang",
+			"match": "\\b[0-9][0-9_]*(\\.[0-9][0-9_]*)?[eE][+-]?[0-9_]+(f)?\\b"
+		},
+		{
+			"comment": "Floating point literal (typed)",
+			"name": "constant.numeric.float.eemblang",
+			"match": "\\b[0-9][0-9_]*(\\.[0-9][0-9_]*)?([eE][+-]?[0-9_]+)?(f)\\b"
+		},
+		{
+			"comment": "Integer literal (decimal)",
+			"name": "constant.numeric.integer.decimal.eemblang",
+			"match": "\\b[0-9][0-9_]*\\b"
+		},
+		{
+			"comment": "Integer literal (hexadecimal)",
+			"name": "constant.numeric.integer.hexadecimal.eemblang",
+			"match": "\\b0x[a-fA-F0-9_]+\\b"
+		},
+		{
+			"comment": "Integer literal (binary)",
+			"name": "constant.numeric.integer.binary.eemblang",
+			"match": "\\b0b[01]+\\b"
+		},
+		{
+			"comment": "Static storage modifier",
+			"name": "storage.modifier.static.eemblang",
+			"match": "\\bstatic\\b"
+		},
+		{
+			"comment": "Boolean constant",
+			"name": "constant.language.boolean.eemblang",
+			"match": "\\b(true|false)\\b"
+		},
+		{
+			"comment": "Control keyword",
+			"name": "keyword.control.eemblang",
+			"match": "\\b(break|continue|else|if|in|to|for|return|while)\\b"
+		},
+		{
+			"comment": "Keyword",
+			"name": "keyword.other.eemblang",
+			"match": "\\b(extern|let|var)\\b"
+		},
+		{
+			"include": "#lifetime"
+		},
+		{
+			"comment": "Miscellaneous operator",
+			"name": "keyword.operator.misc.eemblang",
+			"match": "(->)"
+		},
+		{
+			"comment": "Comparison operator",
+			"name": "keyword.operator.comparison.eemblang",
+			"match": "(&&|\\|\\||==|!=)"
+		},
+		{
+			"comment": "Assignment operator",
+			"name": "keyword.operator.assignment.eemblang",
+			"match": "(\\+=|-=|/=|\\*=|%=|\\^=|&=|\\|=|<<=|>>=|=)"
+		},
+		{
+			"comment": "Arithmetic operator",
+			"name": "keyword.operator.arithmetic.eemblang",
+			"match": "(!|\\+|-|/|\\*|%|\\^|&|\\||<<|>>)"
+		},
+		{
+			"comment": "Comparison operator (second group because of regex precedence)",
+			"name": "keyword.operator.comparison.eemblang",
+			"match": "(<=|>=|<|>)"
+		},
+		{
+			"include": "#core_types"
+		},
+		{
+			"include": "#core_vars"
+		},
+		{
+			"include": "#core_marker"
+		},
+		{
+			"include": "#core_traits"
+		},
+		{
+			"include": "#std_types"
+		},
+		{
+			"include": "#std_traits"
+		},
+		{
+			"comment": "Built-in macro",
+			"name": "support.function.builtin.eemblang",
+			"match": "\\b(Length|CastTo|SizeOf|CopyTo)"
+		},
+		{
+			"comment": "Function call",
+			"match": "\\b([A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)\\s*\\(",
+			"captures": {
+				"1": {
+					"name": "entity.name.function.eemblang"
+				}
+			}
+		},
+		{
+			"comment": "Function call with type parameters",
+			"begin": "\\b([A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)\\s*(::)(?=\\s*<.*>\\s*\\()",
+			"end": "\\(",
+			"captures": {
+				"1": {
+					"name": "entity.name.function.eemblang"
+				},
+				"2": {
+					"name": "keyword.operator.misc.eemblang"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#type_params"
+				}
+			]
+		},
+		{
+			"comment": "Function definition",
+			"begin": "\\b(func)\\s+([A-Za-z][A-Za-z0-9_]*|_[A-Za-z0-9_]+)",
+			"end": "[\\{]",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.other.fn.eemblang"
+				},
+				"2": {
+					"name": "entity.name.function.eemblang"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#block_comment"
+				},
+				{
+					"include": "#line_comment"
+				},
+				{
+					"include": "#core_types"
+				},
+				{
+					"include": "#core_marker"
+				},
+				{
+					"include": "#core_traits"
+				},
+				{
+					"include": "#std_types"
+				},
+				{
+					"include": "#std_traits"
+				},
+				{
+					"include": "#type_params"
+				},
+				{
+					"comment": "Function arguments",
+					"match": "\bfunc\b",
+					"name": "keyword.other.fn.eemblang"
+				}
+			]
+		},
+		{
+			"comment": "Type declaration",
+			"begin": "\\b(enum|struct)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+			"end": "[\\{]",
+			"beginCaptures": {
+				"1": {
+					"name": "storage.type.eemblang"
+				},
+				"2": {
+					"name": "entity.name.type.eemblang"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#block_comment"
+				},
+				{
+					"include": "#line_comment"
+				},
+				{
+					"include": "#core_traits"
+				},
+				{
+					"include": "#std_traits"
+				},
+				{
+					"include": "#type_params"
+				},
+				{
+					"include": "#core_types"
+				}
+			]
+		}
+	],
+	"repository": {
+		"block_doc_comment": {
+			"comment": "Block documentation comment",
+			"name": "comment.block.documentation.eemblang",
+			"begin": "/\\*[\\*!](?![\\*/])",
+			"end": "\\*/",
+			"patterns": [
+				{
+					"include": "#block_doc_comment"
+				},
+				{
+					"include": "#block_comment"
+				}
+			]
+		},
+		"block_comment": {
+			"comment": "Block comment",
+			"name": "comment.block.eemblang",
+			"begin": "/\\*",
+			"end": "\\*/",
+			"patterns": [
+				{
+					"include": "#block_doc_comment"
+				},
+				{
+					"include": "#block_comment"
+				}
+			]
+		},
+		"line_doc_comment": {
+			"comment": "Single-line documentation comment",
+			"name": "comment.line.documentation.eemblang",
+			"begin": "//[!/](?=[^/])",
+			"end": "$"
+		},
+		"line_comment": {
+			"comment": "Single-line comment",
+			"name": "comment.line.double-slash.eemblang",
+			"begin": "//",
+			"end": "$"
+		},
+		"escaped_character": {
+			"name": "constant.character.escape.eemblang",
+			"match": "\\\\(0x[0-9A-Fa-f]{2}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.)"
+		},
+		"string_literal": {
+			"comment": "Double-quote string literal",
+			"name": "string.quoted.double.eemblang",
+			"begin": "b?\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"include": "#escaped_character"
+				}
+			]
+		},
+		"raw_string_literal": {
+			"comment": "Raw double-quote string literal",
+			"name": "string.quoted.double.raw.eemblang",
+			"begin": "b?(#)\"",
+			"end": "\""
+		},
+		"ref_lifetime": {
+			"comment": "Reference with named lifetime",
+			"match": "(&)('[a-zA-Z_][a-zA-Z0-9_]*)\\b",
+			"captures": {
+				"1": {
+					"name": "keyword.operator.sigil.eemblang"
+				},
+				"2": {
+					"name": "storage.modifier.lifetime.eemblang"
+				}
+			}
+		},
+		"core_types": {
+			"comment": "Built-in/core type",
+			"name": "support.type.primitive.eemblang",
+			"match": "\\b(bool|char|int|uint|uint8|uint16|uint32|uint64|int8|int16|int32|int64|Pointer|f32|f64|float|double)\\b"
+		},
+		"core_vars": {
+			"comment": "Core type variant",
+			"name": "support.constant.core.eemblang",
+			"match": "\\b(Some|None|Ok|Err)\\b"
+		},
+		"core_marker": {
+			"comment": "Core trait (marker)",
+			"name": "entity.name.type.marker.rueemblangst",
+			"match": "\\b(Copy|Send|Sized|Sync)\\b"
+		},
+		"core_traits": {
+			"comment": "Core trait",
+			"name": "entity.name.type.core.eemblang",
+			"match": "\\b(string)\\b"
+		},
+		"std_types": {
+			"comment": "Standard library type",
+			"name": "entity.name.type.class.std.eemblang",
+			"match": "\\b(Box|String|Vec|Path|PathBuf|Option|Result)\\b"
+		},
+		"std_traits": {
+			"comment": "Standard library trait",
+			"name": "entity.name.type.std.eemblang",
+			"match": "\\b(ToOwned|ToString)\\b"
+		},
+		"type": {
+			"comment": "A type",
+			"name": "entity.name.type.eemblang",
+			"match": "\\b([A-Za-z][_A-Za-z0-9]*|_[_A-Za-z0-9]+)\\b"
+		},
+		"type_params": {
+			"comment": "Type parameters",
+			"name": "meta.type_params.eemblang",
+			"begin": "<(?![=<])",
+			"end": "(?<![-])>",
+			"patterns": [
+				{
+					"include": "#block_comment"
+				},
+				{
+					"include": "#line_comment"
+				},
+				{
+					"include": "#sigils"
+				},
+				{
+					"include": "#lifetime"
+				},
+				{
+					"include": "#core_types"
+				},
+				{
+					"include": "#core_marker"
+				},
+				{
+					"include": "#core_traits"
+				},
+				{
+					"include": "#std_types"
+				},
+				{
+					"include": "#std_traits"
+				},
+				{
+					"include": "#type_params"
+				}
+			]
+		}
+	}
+}
