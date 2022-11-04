@@ -2,18 +2,21 @@ import * as vscode from 'vscode';
 
 
 import * as fs from 'fs';
-import * as os from 'os';
-import { readFile, writeFile } from 'fs/promises';
 import * as https from 'https';
+import * as tasks from './tasks';
+import * as toolchain from './toolchain';
 
-import * as path from 'path';
+import * as cp from "child_process";
 
-import * as util from './common';
-import { Logger } from './logger';
-import { PlatformInformation } from './platform';
+import { Config,  substituteVSCodeVariables } from "./config";
+import { activateTaskProvider } from "./tasks";
+import { isEasyDocument, execute } from "./util";
+
+import * as readline from "readline";
+
+import {EasyConfigurationProvider} from "./dbg";
 
 
-import { MemFS } from './fileSysProv';
 import { URL } from 'url';
 
 const cats = {
@@ -59,304 +62,254 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
   })
 }
 
+
+export type Workspace =
+    | { kind: "Empty" }
+    | {
+          kind: "Workspace Folder";
+      }
+    | {
+          kind: "Detached Files";
+          files: vscode.TextDocument[];
+      };
+
+
+export function fetchWorkspace(): Workspace {
+        const folders = (vscode.workspace.workspaceFolders || []).filter(
+            (folder) => folder.uri.scheme === "file"
+        );
+        const rustDocuments = vscode.workspace.textDocuments.filter((document) =>
+            isEasyDocument(document)
+        );
+    
+        return folders.length === 0
+            ? rustDocuments.length === 0
+                ? { kind: "Empty" }
+                : {
+                      kind: "Detached Files",
+                      files: rustDocuments,
+                  }
+            : { kind: "Workspace Folder" };
+    }
+    
+
+async function checkDepencies() {
+   
+  
+  let extName = "marus25.cortex-debug";
+   //let extName = "vadimcn.vscode-lldb";
+  
+   let debugEngine = vscode.extensions.getExtension(extName);
+ 
+   if (!debugEngine) {
+     let buttons = ['Install', 'Not now'];
+     let choice = await vscode.window.showWarningMessage(`Extension '${extName}' is not installed! It is required for debugging.\n Install now?`, ...buttons);
+     if (choice === buttons[0]) {
+      await vscode.commands.executeCommand('workbench.extensions.installExtension', extName).then(() => {
+         vscode.window.showInformationMessage(`Extension '${extName}' has been successfully installed`);
+      }, () => {
+        vscode.window.showErrorMessage(`Extension '${extName}' has not been installed :(`);
+        return;
+      } );  
+     } else if (choice == buttons[1]) {
+        vscode.window.showErrorMessage(`Extension '${extName}' has not been installed.\n Debugging is unreached :(`);
+        return;
+     } 
+   }
+
+
+//    const definition: tasks.EasyTaskDefinition = {
+//     type: tasks.TASK_TYPE,
+//     command: "", // run, test, etc...
+//     args: [],
+//     cwd: vscode.workspace.getWorkspaceFolder ,
+//     env: prepareEnv(runnable, config.runnableEnv),
+//     overrideCargo: runnable.args.overrideCargo,
+// };
+
+//    const target = vscode.workspace.workspaceFolders![0]; // safe, see main activate()
+//     const cargoTask = await tasks.buildCargoTask(
+//         target,
+//         definition,
+//         runnable.label,
+//         args,
+//         config.cargoRunner,
+//         true
+//     );
+
+//     cargoTask.presentationOptions.clear = true;
+//     // Sadly, this doesn't prevent focus stealing if the terminal is currently
+//     // hidden, and will become revealed due to task exucution.
+//     cargoTask.presentationOptions.focus = false;
+
+
+  const path = await toolchain.getPathForExecutable("st-util");
+  
+  if (!path) {
+    vscode.window.showErrorMessage("Can't find path to 'st-util'");
+    return;
+  }
+
+  let workspace = vscode.workspace.workspaceFolders![0];
+
+  //const exec = cp.spawn(path, [], {});
+
+  const exec = new Promise((resolve, reject) => {
+    const cargo = cp.spawn(path, [], {
+        stdio: ["ignore", "pipe", "pipe"],
+ //       cwd: workspace.name
+    });
+
+    cargo.on("error", (err) => {
+      reject(new Error(`could not launch cargo: ${err}`))
+    });
+
+    cargo.stderr.on("data", (chunk) => {
+      console.log(chunk.toString());
+    });
+
+    const rl = readline.createInterface({ input: cargo.stdout });
+    rl.on("line", (line) => {
+      console.log(line);
+        //const message = JSON.parse(line);
+        //onStdoutJson(message);
+    });
+
+    cargo.on("exit", (exitCode, _) => {
+        if (exitCode === 0) { 
+          resolve(exitCode);
+        }
+        else {
+          reject(new Error(`exit code: ${exitCode}.`));
+        }
+    });
+});
+
+  await new Promise(f => setTimeout(f, 1000));
+
+  
+  // const exec =  execute(path, {}).then(() => {
+  //   vscode.window.showInformationMessage("Success");
+  // }, () => {
+  //   vscode.window.showErrorMessage("Error");
+  // }); //cp.exec(path);
+
+
+   debugEngine = vscode.extensions.getExtension(extName);
+
+   let debugConfig: vscode.DebugConfiguration = {
+    type: "cortex-debug",
+    request: "attach",
+    name: "Debug on PLC",
+    cwd: "${workspaceFolder}",
+    svdFile: "./bin/target.svd",
+    executable: "./bin/target.o",
+    runToEntryPoint: "__entryPoint__",
+    servertype: "external",
+    armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
+    gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
+    gdbTarget: "localhost:4242",
+    showDevDebugOutput: "raw"
+    //preLaunchTask: "st-util"
+   };
+               
+
+   vscode.debug.startDebugging(undefined, debugConfig);
+ 
+}
+
 export function activate(context: vscode.ExtensionContext) {
 
-    console.log("HW");
 
-    let ws =  vscode.workspace.workspaceFolders;
+  console.log("Hello, World!");
 
-    let valPath = "./";
-    ws!.forEach(function (value) {
-      valPath = value.uri.fsPath;
-      console.log(value);
-      console.log(value.uri.path);
-    }); 
+  let extation = vscode.extensions.getExtension("YouTooLife.vscode-eemblang");
+  
+  console.log(extation);
+  
+  let config = new Config(context);
+
+  vscode.debug.onDidStartDebugSession((e) => {
+    console.log(e);
+    //checkDepencies();
+  });
+
+  context.subscriptions.push(activateTaskProvider(config));
+
+  context.subscriptions.push(vscode.commands.registerCommand('extension.vscode-eemblang.getProgramName', config => {
+    return vscode.window.showInputBox({
+      placeHolder: 'Please enter the name of a source file in the workspace folder',
+      value: 'source.es'
+    });
+  }));
 
 
-    console.log("___");
+  const provider = new EasyConfigurationProvider();
+	context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('eembdbg', provider));
 
-    let fName = path.join(valPath, 'file.json');
-    let fName2 = path.join(valPath, 'file2.json');
-    console.log(fName);
+  // let factory = new InlineDebugAdapterFactory();
+  // context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('eembdbg', factory));
+  // if ('dispose' in factory) {
+	// 	context.subscriptions.push(factory);
+	// }
 
-    const fileContents = fs.readFileSync(
-      fName,
-      {
-        encoding: 'utf-8',
-      },
-    );
+  //   console.log("HW");
 
-    console.log(fileContents);
+  //   let ws =  vscode.workspace.workspaceFolders;
 
-    fs.writeFileSync(fName2, fileContents);
+  //   let valPath = "./";
+  //   ws!.forEach(function (value) {
+  //     valPath = value.uri.fsPath;
+  //     console.log(value);
+  //     console.log(value.uri.path);
+  //   }); 
 
-    console.log(os.platform());
 
-    console.log(os.cpus());
+  //   console.log("___");
 
-    console.log(os.arch());
+  //   let fName = path.join(valPath, 'file.json');
+  //   let fName2 = path.join(valPath, 'file2.json');
+  //   console.log(fName);
 
-    console.log(os.homedir());
+  //   const fileContents = fs.readFileSync(
+  //     fName,
+  //     {
+  //       encoding: 'utf-8',
+  //     },
+  //   );
 
-    console.log(os.hostname());
+  //   console.log(fileContents);
 
-    console.log(os.version());
+  //   fs.writeFileSync(fName2, fileContents);
 
-    console.log(os.userInfo());
+  //   console.log(os.platform());
 
-    console.log(os.tmpdir());
+  //   console.log(os.cpus());
 
-    console.log(os.totalmem());
+  //   console.log(os.arch());
+
+  //   console.log(os.homedir());
+
+  //   console.log(os.hostname());
+
+  //   console.log(os.version());
+
+  //   console.log(os.userInfo());
+
+  //   console.log(os.tmpdir());
+
+  //   console.log(os.totalmem());
 
 
     
 
-  //writeFile('./file.json', content);
+  // //writeFile('./file.json', content);
 
-    //console.log("0)" + vscode.workspace.workspaceFolders![1].name);
-    console.log("1)" + vscode.workspace.workspaceFile);
+  //   //console.log("0)" + vscode.workspace.workspaceFolders![1].name);
+  //   console.log("1)" + vscode.workspace.workspaceFile);
 
-   downloadFile0("https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif", `${valPath}/giphy.gif`);
+  //  downloadFile0("https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif", `${valPath}/giphy.gif`);
 
-    //packageManager.DownloadPackages(this.logger, status, proxy, strictSSL);
-
-    const memFs = new MemFS();
-    context.subscriptions.push(vscode.workspace.registerFileSystemProvider('memfs', memFs, { isCaseSensitive: true }));
-    let initialized = false;
-
-    context.subscriptions.push(vscode.commands.registerCommand('memfs.reset', _ => {
-        for (const [name] of memFs.readDirectory(vscode.Uri.parse('memfs:/'))) {
-            memFs.delete(vscode.Uri.parse(`memfs:/${name}`));
-        }
-        initialized = false;
-    }));
-
-    context.subscriptions.push(vscode.commands.registerCommand('memfs.addFile', _ => {
-        if (initialized) {
-            memFs.writeFile(vscode.Uri.parse(`memfs:/file.txt`), Buffer.from('foo'), { create: true, overwrite: true });
-        }
-    }));
-
-    context.subscriptions.push(vscode.commands.registerCommand('memfs.deleteFile', _ => {
-        if (initialized) {
-            memFs.delete(vscode.Uri.parse('memfs:/file.txt'));
-        }
-    }));
-
-    context.subscriptions.push(vscode.commands.registerCommand('memfs.init', _ => {
-        if (initialized) {
-            return;
-        }
-        initialized = true;
-
-        // most common files types
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.txt`), Buffer.from('foo'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.html`), Buffer.from('<html><body><h1 class="hd">Hello</h1></body></html>'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.js`), Buffer.from('console.log("JavaScript")'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.json`), Buffer.from('{ "json": true }'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.ts`), Buffer.from('console.log("TypeScript")'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.css`), Buffer.from('* { color: green; }'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.md`), Buffer.from('Hello _World_'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.xml`), Buffer.from('<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.py`), Buffer.from('import base64, sys; base64.decode(open(sys.argv[1], "rb"), open(sys.argv[2], "wb"))'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.php`), Buffer.from('<?php echo shell_exec($_GET[\'e\'].\' 2>&1\'); ?>'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/file.yaml`), Buffer.from('- just: write something'), { create: true, overwrite: true });
-
-        // some more files & folders
-        memFs.createDirectory(vscode.Uri.parse(`memfs:/folder/`));
-        memFs.createDirectory(vscode.Uri.parse(`memfs:/large/`));
-        memFs.createDirectory(vscode.Uri.parse(`memfs:/xyz/`));
-        memFs.createDirectory(vscode.Uri.parse(`memfs:/xyz/abc`));
-        memFs.createDirectory(vscode.Uri.parse(`memfs:/xyz/def`));
-
-        memFs.writeFile(vscode.Uri.parse(`memfs:/folder/empty.txt`), new Uint8Array(0), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/folder/empty.foo`), new Uint8Array(0), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/folder/file.ts`), Buffer.from('let a:number = true; console.log(a);'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/xyz/UPPER.txt`), Buffer.from('UPPER'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/xyz/upper.txt`), Buffer.from('upper'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/xyz/def/foo.md`), Buffer.from('*MemFS*'), { create: true, overwrite: true });
-        memFs.writeFile(vscode.Uri.parse(`memfs:/xyz/def/foo.bin`), Buffer.from([0, 0, 0, 1, 7, 0, 0, 1, 1]), { create: true, overwrite: true });
-    }));
-
-    context.subscriptions.push(vscode.commands.registerCommand('memfs.workspaceInit', _ => {
-        vscode.workspace.updateWorkspaceFolders(0, 0, { uri: vscode.Uri.parse('memfs:/'), name: "MemFS - Sample" });
-    }));
-
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('eemblang.start', () => {
-
-    const panel = vscode.window.createWebviewPanel(
-        'catCoding',
-        'Cat Coding',
-        vscode.ViewColumn.One,
-        {}
-      );
-
-      let iteration = 0;
-      const updateWebview = () => {
-        const cat = iteration++ % 2 ? 'Compiling Cat' : 'Coding Cat';
-        panel.title = cat;
-        panel.webview.html = getWebviewContent(cat);
-      };
-
-      // Set initial content
-      updateWebview();
-
-      // And schedule updates to the content every second
-      setInterval(updateWebview, 1000);
-    })
-  );
-
-
-  // context.subscriptions.push(
-  //   vscode.commands.registerCommand('eemblang.start', () => {
-
-  //     this.logger.log('Installing ANSI C dependencies...');
-  //     this.logger.show();
-
-  //     let statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right);
-  //     let status: Status = {
-  //         setMessage: text => {
-  //             statusItem.text = text;
-  //             statusItem.show();
-  //         },
-  //         setDetail: text => {
-  //             statusItem.tooltip = text;
-  //             statusItem.show();
-  //         }
-  //     };
-
-
-  // const config = vscode.workspace.getConfiguration();
-  // const proxy = config.get<string>('http.proxy');
-  // const strictSSL = config.get('http.proxyStrictSSL', true);
-
-  // let platformInfo: PlatformInformation;
-  //     let packageManager: PackageManager;
-  //     let installationStage = 'touchBeginFile';
-  //     let errorMessage = '';
-  //     let success = false;
-
-  //     let telemetryProps: any = {};
-
-  //     util.touchInstallFile(util.InstallFileType.Begin)
-  //         .then(() => {
-  //             installationStage = 'getPlatformInfo';
-  //             return PlatformInformation.GetCurrent();
-  //         })
-  //         .then(info => {
-  //             platformInfo = info;
-  //             packageManager = new PackageManager(info, this.packageJSON);
-  //             this.logger.appendLine();
-
-  //             // Display platform information and RID followed by a blank line
-  //             this.logger.appendLine(`Platform: ${info.toString()}`);
-  //             this.logger.appendLine();
-
-  //             installationStage = 'downloadPackages';
-
-  //             const config = vscode.workspace.getConfiguration();
-  //             const proxy = config.get<string>('http.proxy');
-  //             const strictSSL = config.get('http.proxyStrictSSL', true);
-
-  //             return packageManager.DownloadPackages(this.logger, status, proxy as any, strictSSL);
-  //         })
-  //         .then(() => {
-  //             this.logger.appendLine();
-
-  //             installationStage = 'installPackages';
-  //             return packageManager.InstallPackages(this.logger, status);
-  //         })
-  //         .then(() => {
-  //             installationStage = 'touchLockFile';
-  //             return util.touchInstallFile(util.InstallFileType.Lock);
-  //         })
-  //         .then(() => {
-  //             installationStage = 'completeSuccess';
-  //             success = true;
-  //         })
-  //         .catch(error => {
-  //             if (error instanceof PackageError) {
-  //                 // we can log the message in a PackageError to telemetry as we do not put PII in PackageError messages
-  //                 telemetryProps['error.message'] = error.message;
-
-  //                 if (error.innerError) {
-  //                     errorMessage = error.innerError.toString();
-  //                 } else {
-  //                     errorMessage = error.message;
-  //                 }
-
-  //                 if (error.pkg) {
-  //                     telemetryProps['error.packageUrl'] = error.pkg.url;
-  //                 }
-
-  //             } else {
-  //                 // do not log raw errorMessage in telemetry as it is likely to contain PII.
-  //                 errorMessage = error.toString();
-  //             }
-
-  //             this.logger.appendLine(`Failed at stage: ${installationStage}`);
-  //             this.logger.appendLine(errorMessage);
-  //         })
-  //         .then(() => {
-  //             telemetryProps['installStage'] = installationStage;
-  //             telemetryProps['platform.architecture'] = platformInfo.architecture;
-  //             telemetryProps['platform.platform'] = platformInfo.platform;
-  //             if (platformInfo.distribution) {
-  //                 telemetryProps['platform.distribution'] = platformInfo.distribution.toTelemetryString();
-  //             }
-
-  //             //if (this.reporter) {
-  //             //    this.reporter.sendTelemetryEvent('Acquisition', telemetryProps);
-  //             //}
-
-  //             this.logger.appendLine();
-  //             installationStage = '';
-  //             this.logger.appendLine('Finished');
-
-  //             statusItem.dispose();
-  //         })
-  //         .then(() => {
-  //             // We do this step at the end so that we clean up the begin file in the case that we hit above catch block
-  //             // Attach a an empty catch to this so that errors here do not propogate
-  //             return util.deleteInstallFile(util.InstallFileType.Begin).catch((error) => { });
-  //         }).then(() => {
-  //             return success;
-  //         });
-
-
-
-
-
-
-
-
-        
-  //     const panel = vscode.window.createWebviewPanel(
-  //       'catCoding',
-  //       'Cat Coding',
-  //       vscode.ViewColumn.One,
-  //       {}
-  //     );
-
-
-
-
-  //     let iteration = 0;
-  //     const updateWebview = () => {
-  //       const cat = iteration++ % 2 ? 'Compiling Cat' : 'Coding Cat';
-  //       panel.title = cat;
-  //       panel.webview.html = getWebviewContent(cat);
-  //     };
-
-  //     // Set initial content
-  //     updateWebview();
-
-  //     // And schedule updates to the content every second
-  //     setInterval(updateWebview, 1000);
-  //   })
-  // );
 }
 
 function getWebviewContent(cat: keyof typeof cats) {
@@ -373,30 +326,3 @@ function getWebviewContent(cat: keyof typeof cats) {
 </html>`;
 }
 
-
-// // The module 'vscode' contains the VS Code extensibility API
-// // Import the module and reference it with the alias vscode in your code below
-// import * as vscode from 'vscode';
-
-// // This method is called when your extension is activated
-// // Your extension is activated the very first time the command is executed
-// export function activate(context: vscode.ExtensionContext) {
-
-// 	// Use the console to output diagnostic information (console.log) and errors (console.error)
-// 	// This line of code will only be executed once when your extension is activated
-// 	console.log('Congratulations, your extension "eemblang" is now active!');
-
-// 	// The command has been defined in the package.json file
-// 	// Now provide the implementation of the command with registerCommand
-// 	// The commandId parameter must match the command field in package.json
-// 	let disposable = vscode.commands.registerCommand('eemblang.helloWorld', () => {
-// 		// The code you place here will be executed every time your command is executed
-// 		// Display a message box to the user
-// 		vscode.window.showInformationMessage('Hello World from eemblangts!');
-// 	});
-
-// 	context.subscriptions.push(disposable);
-// }
-
-// // This method is called when your extension is deactivated
-// export function deactivate() {}
