@@ -1,5 +1,5 @@
 {
-    "name": "eemblang",
+    "name": "vscode-eemblang",
     "displayName": "EEmbLang",
     "description": "EEmbLang Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
     "version": "0.0.1",
@@ -8,11 +8,13 @@
         "url": "https://github.com/YouTooLife/eemblang.git",
         "type": "git"
     },
+    "publisher": "YouTooLife",
     "engines": {
         "vscode": "^1.68.0"
     },
     "keywords": [
-        "eemblang"
+        "eemblang",
+        "vscode-eemblang"
     ],
     "categories": [
         "Programming Languages",
@@ -24,11 +26,9 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:eemblang.start",
-        "onFileSystem:memfs",
-        "onCommand:memfs.workspaceInit",
-        "onCommand:memfs.init",
-        "onCommand:memfs.reset"
+        "onDebug",
+        "onLanguage:eemblang",
+        "onCommand:extension.vscode-eemblang.getProgramName"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -40,7 +40,8 @@
         "watch-tests": "tsc -p . -w --outDir out",
         "pretest": "npm run compile-tests && npm run compile && npm run lint",
         "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js"
+        "test": "node ./out/test/runTest.js",
+        "vscode-debugadapter": "1.38.0-pre.4"
     },
     "devDependencies": {
         "@types/vscode": "^1.72.0",
@@ -61,9 +62,183 @@
         "https-proxy-agent": "^2.2.4",
         "mkdirp": "^1.0.3",
         "tmp": "0.2.1",
-        "yauzl": "^2.10.0"
+        "yauzl": "^2.10.0",
+        "vscode-debugadapter-testsupport": "1.37.0"
     },
     "contributes": {
+        "breakpoints": [
+            {
+                "language": "eemblang"
+            }
+        ],
+        "debuggers": [
+            {
+                "label": "EEmbDbg",
+                "type": "eembdbg",
+                "languages": [
+                    "eemblang"
+                ],
+                "configurationAttributes": {
+                    "launch": {
+                        "required": [
+                            "cmd", "name"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "description": "cfg label",
+                                "default": "Simulator: Launch"
+                            },
+                            "cmd": {
+                                "type": "string",
+                                "description": "simulate/flush/attach/dbg",
+                                "default": "simulate"
+                            },
+                            "args": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "args such as: host, port and etc"
+                            }
+                        }
+                    }
+                },
+                "initialConfigurations": [
+                    {
+                        "type": "eembdbg",
+                        "cmd": "simulate",
+                        "name": "Simulator: Launch",
+                        "request": "launch"
+                    }
+                ],
+                "configurationSnippets": [
+                    {
+                        "label": "Simulator: Launch",
+                        "description": "A new configuration for launching EEmbSimulator",
+                        "body": {
+                            "name": "Simulator: Launch",
+                            "type": "eembdbg",
+                            "request": "launch",
+                            "cmd": "simulate"
+                        }
+                    },
+                    {
+                        "label": "EEmbDevice: Flush",
+                        "description": "A new configuration for Flushing on EEmbDevice",
+                        "body": {
+                            "name": "EEmbDevice: Flush",
+                            "type": "eembdbg",
+                            "request": "launch",
+                            "cmd": "flush",
+                            "args": ["localhost", "4242"]
+                        }
+                    },
+                    {
+                        "label": "EEmbDevice: attach",
+                        "description": "A new configuration for attaching on EEmbDevice",
+                        "body": {
+                            "name": "EEmbDevice: attach",
+                            "type": "eembdbg",
+                            "request": "launch",
+                            "cmd": "attach",
+                            "args": ["localhost", "4242"]
+                        }
+                    },
+                    {
+                        "label": "EEmbDevice: Debug",
+                        "description": "A new configuration for debug on EEmbDevice",
+                        "body": {
+                            "name": "EEmbDevice: Debug",
+                            "type": "eembdbg",
+                            "request": "launch",
+                            "cmd": "dbg",
+                            "args": ["localhost", "4242"]
+                        }
+                    }
+                ],
+                "variables": {
+                    "AskForProgramName": "extension.vscode-eemblang.getProgramName"
+                }
+            },
+            {
+                "type": "cortex-debug",
+                "initialConfigurations": [
+                    {
+                        "cwd": "${workspaceFolder}",
+                        "executable": "./bin/executable.elf",
+                        "name": "Debug with ST-Util",
+                        "request": "launch",
+                        "runToEntryPoint": "main",
+                        "showDevDebugOutput": "none",
+                        "servertype": "stutil"
+                    }
+                ]
+            }
+        ],
+        "taskDefinitions": [
+            {
+                "type": "eec",
+                "required": [
+                    "command"
+                ],
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "command": {
+                        "type": "string"
+                    },
+                    "args": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "env": {
+                        "type": "object",
+                        "patternProperties": {
+                            ".+": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        ],
+        "problemPatterns": [
+            {
+                "name": "eec",
+                "patterns": [
+                    {
+                        "regexp": "^(warning|warn|error)(?:\\[(.*?)\\])?: (.*)$",
+                        "severity": 1,
+                        "code": 2,
+                        "message": 3
+                    },
+                    {
+                        "regexp": "^[\\s->=]*(.*?):(\\d*):(\\d*)\\s*$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3
+                    }
+                ]
+            },
+            {
+                "name": "eec-json",
+                "patterns": [
+                    {
+                        "regexp": "^.*\"message\":{\"message\":\"([^\"]*).*?\"file_name\":\"([^\"]+).*?\"line_start\":(\\d+).*?\"line_end\":(\\d+).*?\"column_start\":(\\d+).*?\"column_end\":(\\d+).*}$",
+                        "message": 1,
+                        "file": 2,
+                        "line": 3,
+                        "endLine": 4,
+                        "column": 5,
+                        "endColumn": 6
+                    }
+                ]
+            }
+        ],
         "languages": [
             {
                 "id": "eemblang",
@@ -79,6 +254,42 @@
                 "configuration": "./language-configuration.json"
             }
         ],
+        "problemMatchers": [
+            {
+                "name": "eec",
+                "owner": "eec",
+                "source": "eec",
+                "fileLocation": [
+                    "autoDetect",
+                    "${workspaceRoot}"
+                ],
+                "pattern": "$eec"
+            },
+            {
+                "name": "eec-json",
+                "owner": "eec",
+                "source": "eec",
+                "fileLocation": [
+                    "autoDetect",
+                    "${workspaceRoot}"
+                ],
+                "pattern": "$eec-json"
+            },
+            {
+                "name": "eec-watch",
+                "owner": "eec",
+                "source": "eec",
+                "fileLocation": [
+                    "autoDetect",
+                    "${workspaceRoot}"
+                ],
+                "background": {
+                    "beginsPattern": "^\\[Running\\b",
+                    "endsPattern": "^\\[Finished running\\b"
+                },
+                "pattern": "$eec"
+            }
+        ],
         "grammars": [
             {
                 "language": "eemblang",
@@ -88,59 +299,12 @@
         ],
         "commands": [
             {
-                "command": "eemblang.start",
-                "title": "Start new EEmbLang Project",
-                "category": "Programming Languages"
-            },
-            {
-                "command": "memfs.workspaceInit",
-                "title": "Setup Workspace",
-                "category": "MemFS"
-            },
-            {
-                "command": "memfs.init",
-                "title": "Create Files",
-                "category": "MemFS"
-            },
-            {
-                "command": "memfs.reset",
-                "title": "Delete Files",
-                "category": "MemFS"
-            },
-            {
-                "command": "memfs.deleteFile",
-                "title": "Delete \"file.txt\"",
-                "category": "MemFS"
-            },
-            {
-                "command": "memfs.addFile",
-                "title": "Add \"file.txt\"",
-                "category": "MemFS"
+                "command": "extension.vscode-eemblang.getProgramName",
+                "title": "Get prog name"
             }
         ],
         "menus": {
-            "commandPalette": [
-                {
-                    "command": "memfs.init",
-                    "when": "workbenchState == workspace"
-                },
-                {
-                    "command": "memfs.reset",
-                    "when": "workbenchState == workspace"
-                },
-                {
-                    "command": "memfs.deleteFile",
-                    "when": "workbenchState == workspace"
-                },
-                {
-                    "command": "memfs.addFile",
-                    "when": "workbenchState == workspace"
-                },
-                {
-                    "command": "memfs.workspaceInit",
-                    "when": "workbenchState != workspace"
-                }
-            ]
+            "commandPalette": []
         }
     }
 }
