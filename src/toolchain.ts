@@ -159,11 +159,14 @@ export const getPathForExecutable = memoizeAsync(
         try {
             // hmm, `os.homedir()` seems to be infallible
             // it is not mentioned in docs and cannot be inferred by the type signature...
+
+            let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+
             const standardPath = vscode.Uri.joinPath(
-                vscode.Uri.file(os.homedir()),
+                vscode.Uri.file(homeDir),
                 ".eec",
-                "out", "build", "bin",
-                "Windows_NT" ? `${executableName}.exe` : executableName
+                "bin",
+                os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
             );
 
             if (await isFileAtUri(standardPath)) return standardPath.fsPath;

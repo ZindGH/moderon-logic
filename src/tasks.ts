@@ -29,13 +29,13 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // tasks.json - only tweaked.
 
         const defs = [
-            { command: "build", group: vscode.TaskGroup.Build },
-            { command: "check", group: vscode.TaskGroup.Build },
-            { command: "simulate", group: vscode.TaskGroup.Build },
-            { command: "clippy", group: vscode.TaskGroup.Build },
-            { command: "test", group: vscode.TaskGroup.Test },
-            { command: "clean", group: vscode.TaskGroup.Clean },
-            { command: "run", group: undefined },
+            { command: "-target thumbv7m-none-none-eabi -emit-llvm -g -O3", group: vscode.TaskGroup.Build },
+            // { command: "check", group: vscode.TaskGroup.Build },
+            // { command: "simulate", group: vscode.TaskGroup.Build },
+            // { command: "clippy", group: vscode.TaskGroup.Build },
+            // { command: "test", group: vscode.TaskGroup.Test },
+            // { command: "clean", group: vscode.TaskGroup.Clean },
+            { command: "-target simulate -emit-llvm -g -O3", group: undefined },
         ];
 
         const tasks: vscode.Task[] = [];
@@ -44,8 +44,8 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 const vscodeTask = await buildEasyTask(
                     workspaceTarget,
                     { type: TASK_TYPE, command: def.command },
-                    `eec ${def.command}`,
-                    [def.command],
+                    `eec`,
+                    [`${workspaceTarget.uri.fsPath}`, def.command],
                     this.config.easyRunner
                 );
                 vscodeTask.group = def.group;
@@ -62,6 +62,8 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // a ShellExecution for it.
 
         const definition = task.definition as EasyTaskDefinition;
+
+        //let command = definition.command?
 
         if (definition.type === TASK_TYPE && definition.command) {
             const args = [definition.command].concat(definition.args ?? []);
@@ -115,6 +117,21 @@ export async function buildEasyTask(
         const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
         const easyPath = await toolchain.easyPath();
         const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
+
+
+            var index = easyCommand.indexOf(0, 0);
+            if (index > -1 && easyCommand[0] == "run") {
+                easyCommand.splice(index, 1);
+            }
+
+            let nArgs = [];
+            
+            index = args.indexOf("run", 0);
+            if (index > -1) {
+                args.splice(index, 1);
+            }
+
+            
 
         const fullCommand = [...easyCommand, ...args];
 

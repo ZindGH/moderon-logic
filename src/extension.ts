@@ -311,6 +311,7 @@ export function activate(context: vscode.ExtensionContext) {
   //  downloadFile0("https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif", `${valPath}/giphy.gif`);
 
 }
+ 
 
 function getWebviewContent(cat: keyof typeof cats) {
   return `<!DOCTYPE html>
