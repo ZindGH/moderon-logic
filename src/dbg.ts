@@ -124,9 +124,9 @@ async function checkDepencies() {
       executable: "./bin/target.o",
       runToEntryPoint: "__entryPoint__",
       servertype: "external",
-      armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
-      gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
-      gdbTarget: "localhost:4242",
+//      armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
+      //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
+      gdbTarget: "localhost:3333",
       showDevDebugOutput: "raw"
       //preLaunchTask: "st-util"
      };
@@ -158,9 +158,9 @@ export class EasyConfigurationProvider implements vscode.DebugConfigurationProvi
             executable: "./bin/target.o",
             runToEntryPoint: "__entryPoint__",
             servertype: "external",
-            armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
-            gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
-            gdbTarget: "localhost:4242",
+ //           armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
+            //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
+            gdbTarget: "localhost:3333",
             showDevDebugOutput: "raw"
             //preLaunchTask: "st-util"
            };

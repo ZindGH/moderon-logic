@@ -7,12 +7,15 @@ import { log } from "./util";
 export const TASK_TYPE = "eec";
 export const TASK_SOURCE = "eemblang";
 
+import * as path from "path";
+import { fstat } from "fs";
+
 export interface EasyTaskDefinition extends vscode.TaskDefinition {
     command?: string;
     args?: string[];
     cwd?: string;
     env?: { [key: string]: string };
-    overrideCargo?: string;
+    overrideEasy?: string;
 }
 
 class EasyTaskProvider implements vscode.TaskProvider {
@@ -29,23 +32,24 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // tasks.json - only tweaked.
 
         const defs = [
-            { command: "-target thumbv7m-none-none-eabi -emit-llvm -g -O3", group: vscode.TaskGroup.Build },
+            //{ command: "-target thumbv7m-none-none-eabi -S -emit-llvm -g -O3", group: vscode.TaskGroup.Build },
             // { command: "check", group: vscode.TaskGroup.Build },
             // { command: "simulate", group: vscode.TaskGroup.Build },
             // { command: "clippy", group: vscode.TaskGroup.Build },
             // { command: "test", group: vscode.TaskGroup.Test },
-            // { command: "clean", group: vscode.TaskGroup.Clean },
-            { command: "-target simulate -emit-llvm -g -O3", group: undefined },
+            { command: "flush", name: "Flush program to device", args: [], undefined },
+            { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         ];
 
         const tasks: vscode.Task[] = [];
         for (const workspaceTarget of vscode.workspace.workspaceFolders || []) {
             for (const def of defs) {
+                let args0 = [`${workspaceTarget.uri.fsPath}`].concat(def.args);
                 const vscodeTask = await buildEasyTask(
                     workspaceTarget,
-                    { type: TASK_TYPE, command: def.command },
-                    `eec`,
-                    [`${workspaceTarget.uri.fsPath}`, def.command],
+                    { type: TASK_TYPE, command: def.command, args: args0 },
+                    def.name,
+                    args0,
                     this.config.easyRunner
                 );
                 vscodeTask.group = def.group;
@@ -63,16 +67,34 @@ class EasyTaskProvider implements vscode.TaskProvider {
 
         const definition = task.definition as EasyTaskDefinition;
 
+        // let args = definition.args ?? [""]
+
+
+
+        // let uri = vscode.Uri.file(args[0]);
+
+        // vscode.workspace.fs.stat(uri).then(() => {
+        //     if (uri.fsPath.search(".es") == -1)
+        //     {
+        //         vscode.window.showInformationMessage(`Can't compile file '${args[0]}'`);
+        //         return undefined;
+        //     }
+        // }, 
+        // () => {
+        //     vscode.window.showInformationMessage(`Can't compile file '${args[0]}'`);
+        //     return undefined;
+        // });
+
         //let command = definition.command?
 
         if (definition.type === TASK_TYPE && definition.command) {
-            const args = [definition.command].concat(definition.args ?? []);
+            //const args = [definition.command].concat(definition.args ?? []);
             //const args = ${"file"};
             return await buildEasyTask(
                 task.scope,
                 definition,
                 task.name,
-                args,
+                definition.args ?? [],
                 this.config.easyRunner
             );
         }
@@ -91,25 +113,25 @@ export async function buildEasyTask(
 ): Promise<vscode.Task> {
     let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
 
-    if (customRunner) {
-        const runnerCommand = `${customRunner}.buildShellExecution`;
-        try {
-            const runnerArgs = { kind: TASK_TYPE, args, cwd: definition.cwd, env: definition.env };
-            const customExec = await vscode.commands.executeCommand(runnerCommand, runnerArgs);
-            if (customExec) {
-                if (customExec instanceof vscode.ShellExecution) {
-                    exec = customExec;
-                } else {
-                    log.debug("Invalid Easy ShellExecution", customExec);
-                    throw "Invalid Easy ShellExecution.";
-                }
-            }
-            // fallback to default processing
-        } catch (e) {
-            if (throwOnError) throw `Easy runner '${customRunner}' failed! ${e}`;
-            // fallback to default processing
-        }
-    }
+    // if (customRunner) {
+    //     const runnerCommand = `${customRunner}.buildShellExecution`;
+    //     try {
+    //         const runnerArgs = { kind: TASK_TYPE, args, cwd: definition.cwd, env: definition.env };
+    //         const customExec = await vscode.commands.executeCommand(runnerCommand, runnerArgs);
+    //         if (customExec) {
+    //             if (customExec instanceof vscode.ShellExecution) {
+    //                 exec = customExec;
+    //             } else {
+    //                 log.debug("Invalid Easy ShellExecution", customExec);
+    //                 throw "Invalid Easy ShellExecution.";
+    //             }
+    //         }
+    //         // fallback to default processing
+    //     } catch (e) {
+    //         if (throwOnError) throw `Easy runner '${customRunner}' failed! ${e}`;
+    //         // fallback to default processing
+    //     }
+    // }
 
     if (!exec) {
         // Check whether we must use a user-defined substitute for cargo.
@@ -118,19 +140,17 @@ export async function buildEasyTask(
         const easyPath = await toolchain.easyPath();
         const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
 
+            // var index = easyCommand.indexOf("run", 0);
+            // if (index > -1) {
+            //     easyCommand.splice(index, 1);
+            // }
 
-            var index = easyCommand.indexOf(0, 0);
-            if (index > -1 && easyCommand[0] == "run") {
-                easyCommand.splice(index, 1);
-            }
-
-            let nArgs = [];
+            // let nArgs = [];
             
-            index = args.indexOf("run", 0);
-            if (index > -1) {
-                args.splice(index, 1);
-            }
-
+            // index = args.indexOf("run", 0);
+            // if (index > -1) {
+            //     args.splice(index, 1);
+            // }
             
 
         const fullCommand = [...easyCommand, ...args];

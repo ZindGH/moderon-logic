@@ -28,6 +28,7 @@
     "activationEvents": [
         "onDebug",
         "onLanguage:eemblang",
+        "onCustomEditor:vscode-eemblang.modbusEditor",
         "onCommand:extension.vscode-eemblang.getProgramName"
     ],
     "main": "./dist/extension.js",
@@ -66,6 +67,35 @@
         "vscode-debugadapter-testsupport": "1.37.0"
     },
     "contributes": {
+        "languages": [
+            {
+                "id": "eemblang",
+                "aliases": [
+                    "EEmbLang",
+                    "eemblang",
+                    "EasyEmbLang",
+                    "EasyLang"
+                ],
+                "extensions": [
+                    ".es"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+
+        "customEditors": [
+            {
+              "viewType": "vscode-eemblang.modbusEditor",
+              "displayName": "Modbus editor",
+              "selector": [
+                {
+                  "filenamePattern": "*.jsmbt"
+                }
+              ],
+              "priority": "default"
+            }
+          ],
+
         "breakpoints": [
             {
                 "language": "eemblang"
@@ -206,89 +236,32 @@
                 }
             }
         ],
-        "problemPatterns": [
+	   "problemPatterns": [
             {
                 "name": "eec",
                 "patterns": [
                     {
-                        "regexp": "^(warning|warn|error)(?:\\[(.*?)\\])?: (.*)$",
-                        "severity": 1,
-                        "code": 2,
-                        "message": 3
-                    },
-                    {
-                        "regexp": "^[\\s->=]*(.*?):(\\d*):(\\d*)\\s*$",
+                        "regexp": "^\\[(.*):(\\d+)\\.(\\d+).*\\]:\\s(Error|Warning):(.*)$",
                         "file": 1,
                         "line": 2,
-                        "column": 3
+                        "column": 3,
+                        "severity": 4,
+                        "message": 5
                     }
                 ]
-            },
-            {
-                "name": "eec-json",
-                "patterns": [
-                    {
-                        "regexp": "^.*\"message\":{\"message\":\"([^\"]*).*?\"file_name\":\"([^\"]+).*?\"line_start\":(\\d+).*?\"line_end\":(\\d+).*?\"column_start\":(\\d+).*?\"column_end\":(\\d+).*}$",
-                        "message": 1,
-                        "file": 2,
-                        "line": 3,
-                        "endLine": 4,
-                        "column": 5,
-                        "endColumn": 6
-                    }
-                ]
-            }
-        ],
-        "languages": [
-            {
-                "id": "eemblang",
-                "aliases": [
-                    "EEmbLang",
-                    "eemblang",
-                    "EasyEmbLang",
-                    "EasyLang"
-                ],
-                "extensions": [
-                    ".es"
-                ],
-                "configuration": "./language-configuration.json"
             }
         ],
         "problemMatchers": [
             {
                 "name": "eec",
                 "owner": "eec",
-                "source": "eec",
                 "fileLocation": [
                     "autoDetect",
-                    "${workspaceRoot}"
+                    "${workspaceFolder}"
                 ],
-                "pattern": "$eec"
-            },
-            {
-                "name": "eec-json",
-                "owner": "eec",
-                "source": "eec",
-                "fileLocation": [
-                    "autoDetect",
-                    "${workspaceRoot}"
-                ],
-                "pattern": "$eec-json"
-            },
-            {
-                "name": "eec-watch",
-                "owner": "eec",
-                "source": "eec",
-                "fileLocation": [
-                    "autoDetect",
-                    "${workspaceRoot}"
-                ],
-                "background": {
-                    "beginsPattern": "^\\[Running\\b",
-                    "endsPattern": "^\\[Finished running\\b"
-                },
                 "pattern": "$eec"
             }
+           
         ],
         "grammars": [
             {

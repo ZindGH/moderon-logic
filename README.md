@@ -69,3 +69,46 @@ You can author your README using Visual Studio Code. Here are some useful editor
 * [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
 **Enjoy!**
+
+
+          {
+                "name": "eec-json",
+                "patterns": [
+                    {
+                        "regexp": "^.*\"message\":{\"message\":\"([^\"]*).*?\"file_name\":\"([^\"]+).*?\"line_start\":(\\d+).*?\"line_end\":(\\d+).*?\"column_start\":(\\d+).*?\"column_end\":(\\d+).*}$",
+                        "message": 1,
+                        "file": 2,
+                        "line": 3,
+                        "endLine": 4,
+                        "column": 5,
+                        "endColumn": 6
+                    }
+                ]
+            }
+
+
+
+ // {
+            //     "name": "eec-json",
+            //     "owner": "eec",
+            //     "source": "eemblang",
+            //     "fileLocation": [
+            //         "autoDetect",
+            //         "${workspaceRoot}"
+            //     ],
+            //     "pattern": "$eec-json"
+            // },
+            // {
+            //     "name": "eec-watch",
+            //     "owner": "eec",
+            //     "source": "eec",
+            //     "fileLocation": [
+            //         "autoDetect",
+            //         "${workspaceRoot}"
+            //     ],
+            //     "background": {
+            //         "beginsPattern": "^\\[Running\\b",
+            //         "endsPattern": "^\\[Finished running\\b"
+            //     },
+            //     "pattern": "$eec"
+            // }

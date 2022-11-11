@@ -229,6 +229,7 @@ export function activate(context: vscode.ExtensionContext) {
   
   let config = new Config(context);
 
+
   vscode.debug.onDidStartDebugSession((e) => {
     console.log(e);
     //checkDepencies();
