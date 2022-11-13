@@ -16,6 +16,8 @@ import * as readline from "readline";
 
 import {EasyConfigurationProvider} from "./dbg";
 
+import {TableEditorProvider } from './ModbusEditor/tableEditor';
+
 
 import { URL } from 'url';
 
@@ -247,6 +249,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   const provider = new EasyConfigurationProvider();
 	context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('eembdbg', provider));
+
+
+  context.subscriptions.push(TableEditorProvider.register(context));
 
   // let factory = new InlineDebugAdapterFactory();
   // context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('eembdbg', factory));

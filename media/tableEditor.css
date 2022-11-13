@@ -10,7 +10,7 @@ body.vscode-dark {
 	background-image: url(./sand-dark.jpg);
 }
 
-.notes {
+.tvars {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, 100px);
 	grid-template-rows: repeat(auto-fill, 100px);
@@ -18,7 +18,7 @@ body.vscode-dark {
 	justify-content: center;
 }
 
-.note {
+.tvar {
 	display: flex;
 	flex-direction: column;
 	border-radius: 5px;
@@ -29,7 +29,7 @@ body.vscode-dark {
 	overflow: hidden;
 }
 
-.note .text {
+.tvar .text {
 	flex: 1;
 	font-size: 3em;
 	display: flex;
@@ -37,7 +37,7 @@ body.vscode-dark {
 	align-items: center;
 }
 
-.note .created {
+.tvar .created {
 	font-style: italic;
 	font-size: 0.75em;
 }
@@ -60,6 +60,6 @@ body.vscode-dark {
 	content: 'delete';
 }
 
-.note:hover .delete-button {
+.tvar:hover .delete-button {
 	display: block;
 }

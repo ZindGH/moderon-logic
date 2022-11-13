@@ -28,8 +28,9 @@
     "activationEvents": [
         "onDebug",
         "onLanguage:eemblang",
-        "onCustomEditor:vscode-eemblang.modbusEditor",
-        "onCommand:extension.vscode-eemblang.getProgramName"
+        "onCommand:extension.vscode-eemblang.getProgramName",
+        "onCustomEditor:vscode-eemblang.tableEditor",
+		"onCommand:vscode-eemblang.modbus.locals.new"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -85,7 +86,7 @@
 
         "customEditors": [
             {
-              "viewType": "vscode-eemblang.modbusEditor",
+              "viewType": "vscode-eemblang.tableEditor",
               "displayName": "Modbus editor",
               "selector": [
                 {
@@ -274,7 +275,12 @@
             {
                 "command": "extension.vscode-eemblang.getProgramName",
                 "title": "Get prog name"
-            }
+            },
+            {
+				"command": "vscode-eemblang.modbus.locals.new",
+				"title": "Create new Local Modbus table",
+				"category": "Modbus table"
+			}
         ],
         "menus": {
             "commandPalette": []
