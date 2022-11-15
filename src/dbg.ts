@@ -11,6 +11,12 @@ import * as toolchain from './toolchain';
 import * as cp from "child_process";
 
 
+export interface EasyDbgCfg extends DebugConfiguration {
+  request: string,
+  cmd: string;
+}
+
+
 async function checkDepencies() {
    
   
@@ -161,9 +167,18 @@ export class EasyConfigurationProvider implements vscode.DebugConfigurationProvi
  //           armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
             //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
             gdbTarget: "localhost:3333",
-            showDevDebugOutput: "raw"
-            //preLaunchTask: "st-util"
+            showDevDebugOutput: "raw",
+            preLaunchTask: "eemblang: Build for Device"
            };
+
+
+           let cfg = config as EasyDbgCfg;
+           if (cfg.cmd == "simulate") {
+            debugConfig.preLaunchTask = "eemblang: Run Simulator";
+           }
+           else {
+            checkDepencies();
+           }
 
 		// if (!config.type && !config.request && !config.name) {
 		// 	const editor = vscode.window.activeTextEditor;
@@ -181,7 +196,7 @@ export class EasyConfigurationProvider implements vscode.DebugConfigurationProvi
 		// 		return undefined;	// abort launch
 		// 	});
 		// }
-        checkDepencies();
+        //checkDepencies();
 
 
 		return debugConfig;

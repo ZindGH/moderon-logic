@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as toolchain from "./toolchain";
 import { Config } from "./config";
+import * as os from "os";
 import { log } from "./util";
 
 
@@ -9,6 +10,12 @@ export const TASK_SOURCE = "eemblang";
 
 import * as path from "path";
 import { fstat } from "fs";
+import { rejects } from "assert";
+
+import * as nodePath from 'path';
+import { openStdin } from "process";
+
+const posixPath = nodePath.posix || nodePath;
 
 export interface EasyTaskDefinition extends vscode.TaskDefinition {
     command?: string;
@@ -37,14 +44,15 @@ class EasyTaskProvider implements vscode.TaskProvider {
             // { command: "simulate", group: vscode.TaskGroup.Build },
             // { command: "clippy", group: vscode.TaskGroup.Build },
             // { command: "test", group: vscode.TaskGroup.Test },
-            { command: "flush", name: "Flush program to device", args: [], undefined },
+            //{ command: "flush", name: "Flush program to device", args: [], undefined },
+            { command: "build", name: "Build for Device", args: ["-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
             { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         ];
 
         const tasks: vscode.Task[] = [];
         for (const workspaceTarget of vscode.workspace.workspaceFolders || []) {
             for (const def of defs) {
-                let args0 = [`${workspaceTarget.uri.fsPath}`].concat(def.args);
+                let args0 = [`${workspaceTarget.uri.fsPath}/main.es`].concat(def.args);
                 const vscodeTask = await buildEasyTask(
                     workspaceTarget,
                     { type: TASK_TYPE, command: def.command, args: args0 },
@@ -113,25 +121,6 @@ export async function buildEasyTask(
 ): Promise<vscode.Task> {
     let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
 
-    // if (customRunner) {
-    //     const runnerCommand = `${customRunner}.buildShellExecution`;
-    //     try {
-    //         const runnerArgs = { kind: TASK_TYPE, args, cwd: definition.cwd, env: definition.env };
-    //         const customExec = await vscode.commands.executeCommand(runnerCommand, runnerArgs);
-    //         if (customExec) {
-    //             if (customExec instanceof vscode.ShellExecution) {
-    //                 exec = customExec;
-    //             } else {
-    //                 log.debug("Invalid Easy ShellExecution", customExec);
-    //                 throw "Invalid Easy ShellExecution.";
-    //             }
-    //         }
-    //         // fallback to default processing
-    //     } catch (e) {
-    //         if (throwOnError) throw `Easy runner '${customRunner}' failed! ${e}`;
-    //         // fallback to default processing
-    //     }
-    // }
 
     if (!exec) {
         // Check whether we must use a user-defined substitute for cargo.
@@ -140,18 +129,35 @@ export async function buildEasyTask(
         const easyPath = await toolchain.easyPath();
         const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
 
-            // var index = easyCommand.indexOf("run", 0);
-            // if (index > -1) {
-            //     easyCommand.splice(index, 1);
-            // }
 
-            // let nArgs = [];
-            
-            // index = args.indexOf("run", 0);
-            // if (index > -1) {
-            //     args.splice(index, 1);
-            // }
-            
+        const index = args.indexOf("-o", 0);
+        if (index == -1) {
+            let uri = vscode.Uri.file(args[0]);
+            let path = "";
+            try {
+                let stat = (await vscode.workspace.fs.stat(uri));
+                if (stat.type == vscode.FileType.File) {
+                    path = posixPath.dirname(uri.path);
+                    path = path.concat("/out/output");
+                    if (os.type() === "Windows_NT" && path[0] == '/') {
+                        path = path.slice(1);
+                    }
+                }
+                else {
+                    path = args[0].concat("/out/output");
+                }
+            } catch {
+                vscode.window.showErrorMessage(`Can't compile file '${args[0]}'`);
+                return new Promise(function(resolve, reject) {
+                    reject("Error");
+                });
+            }
+            args = args.concat(["-o", path]);
+            uri = vscode.Uri.file(posixPath.dirname(path));
+            (await (vscode.workspace.fs.stat(uri)).then(()=>{}, () => {
+                vscode.workspace.fs.createDirectory(uri);
+            }));
+        }
 
         const fullCommand = [...easyCommand, ...args];
 
