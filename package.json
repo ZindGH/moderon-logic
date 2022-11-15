@@ -3,14 +3,14 @@
     "displayName": "EEmbLang",
     "description": "EEmbLang Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
     "version": "0.0.1",
-    "icon": "icon.png",
+    "icon": "icon.jpg",
     "repository": {
         "url": "https://github.com/YouTooLife/eemblang.git",
         "type": "git"
     },
     "publisher": "YouTooLife",
     "engines": {
-        "vscode": "^1.68.0"
+        "vscode": "^1.72.0"
     },
     "keywords": [
         "eemblang",
@@ -30,7 +30,7 @@
         "onLanguage:eemblang",
         "onCommand:extension.vscode-eemblang.getProgramName",
         "onCustomEditor:vscode-eemblang.tableEditor",
-		"onCommand:vscode-eemblang.modbus.locals.new"
+        "onCommand:vscode-eemblang.modbus.locals.new"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -83,20 +83,18 @@
                 "configuration": "./language-configuration.json"
             }
         ],
-
         "customEditors": [
             {
-              "viewType": "vscode-eemblang.tableEditor",
-              "displayName": "Modbus editor",
-              "selector": [
-                {
-                  "filenamePattern": "*.jsmbt"
-                }
-              ],
-              "priority": "default"
+                "viewType": "vscode-eemblang.tableEditor",
+                "displayName": "Modbus editor",
+                "selector": [
+                    {
+                        "filenamePattern": "*.jsmbt"
+                    }
+                ],
+                "priority": "default"
             }
-          ],
-
+        ],
         "breakpoints": [
             {
                 "language": "eemblang"
@@ -112,7 +110,8 @@
                 "configurationAttributes": {
                     "launch": {
                         "required": [
-                            "cmd", "name"
+                            "cmd",
+                            "name"
                         ],
                         "properties": {
                             "name": {
@@ -162,7 +161,10 @@
                             "type": "eembdbg",
                             "request": "launch",
                             "cmd": "flush",
-                            "args": ["localhost", "4242"]
+                            "args": [
+                                "localhost",
+                                "4242"
+                            ]
                         }
                     },
                     {
@@ -173,7 +175,10 @@
                             "type": "eembdbg",
                             "request": "launch",
                             "cmd": "attach",
-                            "args": ["localhost", "4242"]
+                            "args": [
+                                "localhost",
+                                "4242"
+                            ]
                         }
                     },
                     {
@@ -184,7 +189,10 @@
                             "type": "eembdbg",
                             "request": "launch",
                             "cmd": "dbg",
-                            "args": ["localhost", "4242"]
+                            "args": [
+                                "localhost",
+                                "4242"
+                            ]
                         }
                     }
                 ],
@@ -237,7 +245,7 @@
                 }
             }
         ],
-	   "problemPatterns": [
+        "problemPatterns": [
             {
                 "name": "eec",
                 "patterns": [
@@ -262,7 +270,6 @@
                 ],
                 "pattern": "$eec"
             }
-           
         ],
         "grammars": [
             {
@@ -277,10 +284,10 @@
                 "title": "Get prog name"
             },
             {
-				"command": "vscode-eemblang.modbus.locals.new",
-				"title": "Create new Local Modbus table",
-				"category": "Modbus table"
-			}
+                "command": "vscode-eemblang.modbus.locals.new",
+                "title": "Create new Local Modbus table",
+                "category": "Modbus table"
+            }
         ],
         "menus": {
             "commandPalette": []
