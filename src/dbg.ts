@@ -127,11 +127,13 @@ async function checkDepencies() {
       name: "Debug on PLC",
       cwd: "${workspaceFolder}",
       svdFile: "./bin/target.svd",
-      executable: "./bin/target.o",
+      executable: "./out/target_out.o",
       runToEntryPoint: "__entryPoint__",
       servertype: "external",
 //      armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
       //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
+      armToolchainPath: "D:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
+      gdbPath: "D:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin\\arm-none-eabi-gdb.exe",
       gdbTarget: "localhost:3333",
       showDevDebugOutput: "raw"
       //preLaunchTask: "st-util"
@@ -164,8 +166,8 @@ export class EasyConfigurationProvider implements vscode.DebugConfigurationProvi
             executable: "./bin/target.o",
             runToEntryPoint: "__entryPoint__",
             servertype: "external",
- //           armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
-            //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
+            armToolchainPath: "D:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
+            gdbPath: "D:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin\\arm-none-eabi-gdb.exe",
             gdbTarget: "localhost:3333",
             showDevDebugOutput: "raw",
             preLaunchTask: "eemblang: Build for Device"

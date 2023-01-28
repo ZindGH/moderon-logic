@@ -30,7 +30,8 @@
         "onLanguage:eemblang",
         "onCommand:extension.vscode-eemblang.getProgramName",
         "onCustomEditor:vscode-eemblang.tableEditor",
-        "onCommand:vscode-eemblang.modbus.locals.new"
+        "onCommand:vscode-eemblang.modbus.locals.new",
+        "onCommand:extension.vscode-eemblang.compileProject"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -241,6 +242,9 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "dependsOn": {
+                        "type": "string"
                     }
                 }
             }
@@ -287,10 +291,102 @@
                 "command": "vscode-eemblang.modbus.locals.new",
                 "title": "Create new Local Modbus table",
                 "category": "Modbus table"
+            },
+            {
+                "command": "vscode-eemblang.compileProject",
+                "title": "Compile project",
+                "category": "vscode-eemblang",
+                "icon": {
+                  "dark": "res/dark/build-icon.svg",
+                  "light": "res/light/build-icon.svg"
+                }
+            },
+            {
+                "command": "vscode-eemblang.runSimulator",
+                "title": "Run Simulator",
+                "category": "vscode-eemblang",
+                "icon": "$(vm-running)"
+            },
+            {
+                "command": "vscode-eemblang.flash",
+                "title": "Flash to device",
+                "category": "vscode-eemblang",
+                "icon": "$(symbol-event)"
+            },
+            {
+                "command": "vscode-eemblang.flushDbg",
+                "title": "Flash to device and start Debug",
+                "category": "vscode-eemblang",
+                "icon": "$(debug-alt)"
+            },
+            {
+                "command": "vscode-eemblang.attach",
+                "title": "Attach to device",
+                "category": "vscode-eemblang",
+                "icon": "$(debug)"
+            },
+            {
+                "command": "vscode-eemblang.flush",
+                "title": "Flash to device",
+                "category": "vscode-eemblang",
+                "icon": "$(symbol-event)"
+            },
+            {
+                "command": "vscode-eemblang.settings",
+                "title": "Project settings",
+                "category": "vscode-eemblang",
+                "icon": "$(settings)"
             }
         ],
+        "configuration": [
+            {
+              "title": "EEmbLang configuration",
+              "properties": {
+                "eemblang.build.inputFile": {
+                  "title": "Source file or path",
+                  "type": "string",
+                  "default": "${workspaceTarget.uri.fsPath}/main.es",
+                  "description": "Path to source file or directory for compilation"
+                }
+            }
+        }],
         "menus": {
-            "commandPalette": []
+            "editor/title": [
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.runSimulator",
+                    "group": "navigation@2"
+                },
+                {
+                  "when": "resourceLangId == eemblang",
+                  "command": "vscode-eemblang.compileProject",
+                  "group": "navigation@1"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.flush",
+                    "group": "navigation@3"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.flushDbg",
+                    "group": "navigation@0"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.attach",
+                    "group": "navigation@4"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.flash"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.settings",
+                    "group": "navigation@5"
+                }
+            ]
         }
     }
 }

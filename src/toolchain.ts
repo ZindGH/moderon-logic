@@ -145,10 +145,18 @@ export function easyPath(): Promise<string> {
     return getPathForExecutable("eec");
 }
 
+export function linkerPath(): Promise<string> {
+    return getPathForExecutable("ld.lld");
+}
+
+export function ebuildPath(): Promise<string> {
+    return getPathForExecutable("ebuild");
+}
+
 /** Mirrors `toolchain::get_path_for_executable()` implementation */
 export const getPathForExecutable = memoizeAsync(
     // We apply caching to decrease file-system interactions
-    async (executableName: "eec" | "EEcompiler" | "easy" | "st-util"): Promise<string> => {
+    async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild"): Promise<string> => {
         {
             const envVar = process.env[executableName.toUpperCase()];
             if (envVar) return envVar;
@@ -168,6 +176,8 @@ export const getPathForExecutable = memoizeAsync(
                 "bin",
                 os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
             );
+
+            console.log ( "standardPath: ", standardPath, standardPath.fsPath );
 
             if (await isFileAtUri(standardPath)) return standardPath.fsPath;
         } catch (err) {

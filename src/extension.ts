@@ -239,6 +239,42 @@ export function activate(context: vscode.ExtensionContext) {
     });
   }));
 
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', config => {
+    return vscode.window.showInformationMessage("Body", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.runSimulator', config => {
+    return vscode.window.showInformationMessage("Run", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flash', config => {
+    return vscode.window.showInformationMessage("Flash", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flush', config => {
+    return vscode.window.showInformationMessage("Flush", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.attach', config => {
+    return vscode.window.showInformationMessage("Attach", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flushDbg', config => {
+    return vscode.window.showInformationMessage("flushDbg", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.settings', config => {
+    return vscode.window.showInformationMessage("settings", "Ok");
+  }));
+
+  let myStatusBarItem: vscode.StatusBarItem;
+  myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+	myStatusBarItem.command = 'vscode-eemblang.runSimulator';
+	context.subscriptions.push(myStatusBarItem);
+  myStatusBarItem.text = `$(run)`;
+  myStatusBarItem.tooltip = "Run Simulator";
+	myStatusBarItem.show();
+
 
   const provider = new EasyConfigurationProvider();
 	context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('eembdbg', provider));

@@ -4,7 +4,6 @@ import { Config } from "./config";
 import * as os from "os";
 import { log } from "./util";
 
-
 export const TASK_TYPE = "eec";
 export const TASK_SOURCE = "eemblang";
 
@@ -23,6 +22,7 @@ export interface EasyTaskDefinition extends vscode.TaskDefinition {
     cwd?: string;
     env?: { [key: string]: string };
     overrideEasy?: string;
+    dependsOn?: string;
 }
 
 class EasyTaskProvider implements vscode.TaskProvider {
@@ -39,32 +39,50 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // tasks.json - only tweaked.
 
         const defs = [
-            //{ command: "-target thumbv7m-none-none-eabi -S -emit-llvm -g -O3", group: vscode.TaskGroup.Build },
-            // { command: "check", group: vscode.TaskGroup.Build },
-            // { command: "simulate", group: vscode.TaskGroup.Build },
-            // { command: "clippy", group: vscode.TaskGroup.Build },
-            // { command: "test", group: vscode.TaskGroup.Test },
-            //{ command: "flush", name: "Flush program to device", args: [], undefined },
             { command: "build", name: "Build for Device", args: ["-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
             { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
+            { command: "link", name: "linker", args: [
+                "${cwd}\\out\\output.o",
+                "--format=elf",
+                "--Map=${cwd}\\out\\target.map",
+                "${cwd}\\out\\target.ld",
+                "-o",
+                "${cwd}\\out\\target.o",
+                "-nostdlib" ]
+            , group: undefined, dependsOn: "eemblang: Build for Device" },
+            { command: "ebuild", name: "buildAELF", args: [
+                "-f", "${cwd}\\out\\target_out.o",
+                "-o", "${cwd}\\out\\prog.alf",
+                "-m", "${cwd}\\out\\output.map",
+                "-c", "${cwd}\\out\\test.cpp_CFG.bin",
+                "-r", "${cwd}\\out\\test.cpp_RES.bin" ]
+                , group: undefined, dependsOn: "eemblang: linker" },
         ];
 
         const tasks: vscode.Task[] = [];
         for (const workspaceTarget of vscode.workspace.workspaceFolders || []) {
             for (const def of defs) {
-                let args0 = [`${workspaceTarget.uri.fsPath}/main.es`].concat(def.args);
+                var args0;
+                
+                if ( def.command == "link" || def.command == "ebuild" )
+                {
+                    args0 = def.args;
+                }
+                else
+                {
+                    args0 = [`${workspaceTarget.uri.fsPath}/main.es`].concat(def.args);
+                }
                 const vscodeTask = await buildEasyTask(
-                    workspaceTarget,
-                    { type: TASK_TYPE, command: def.command, args: args0 },
-                    def.name,
-                    args0,
-                    this.config.easyRunner
+                workspaceTarget,
+                { type: TASK_TYPE, command: def.command, args: args0, dependsOn: def.dependsOn },
+                def.name,
+                args0,
+                this.config.easyRunner
                 );
                 vscodeTask.group = def.group;
-                tasks.push(vscodeTask);
+                tasks.push(vscodeTask); 
             }
         }
-
         return tasks;
     }
 
@@ -75,29 +93,15 @@ class EasyTaskProvider implements vscode.TaskProvider {
 
         const definition = task.definition as EasyTaskDefinition;
 
-        // let args = definition.args ?? [""]
+console.log( "in resolveTask", definition.command );
 
-
-
-        // let uri = vscode.Uri.file(args[0]);
-
-        // vscode.workspace.fs.stat(uri).then(() => {
-        //     if (uri.fsPath.search(".es") == -1)
-        //     {
-        //         vscode.window.showInformationMessage(`Can't compile file '${args[0]}'`);
-        //         return undefined;
-        //     }
-        // }, 
-        // () => {
-        //     vscode.window.showInformationMessage(`Can't compile file '${args[0]}'`);
-        //     return undefined;
-        // });
-
-        //let command = definition.command?
+        // if( definition.command == "link" )
+        // {
+            // definition.dependsOn = "eemblang: Build for Device";
+            console.log( "definition.dependsOn", definition.dependsOn );
+        // }
 
         if (definition.type === TASK_TYPE && definition.command) {
-            //const args = [definition.command].concat(definition.args ?? []);
-            //const args = ${"file"};
             return await buildEasyTask(
                 task.scope,
                 definition,
@@ -117,18 +121,39 @@ export async function buildEasyTask(
     name: string,
     args: string[],
     customRunner?: string,
-    throwOnError: boolean = false
+    throwOnError: boolean = false,
+    dependsOn?: "build"
 ): Promise<vscode.Task> {
     let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
 
+    if ( name == "link" ||  name == "linker" ||  name == "eemblang: linker" ||
+       name == "ebuild" ||  name == "buildAELF" || name == "eemblang: buildAELF" ) {
+        if (!exec) {
+            // Check whether we must use a user-defined substitute for cargo.
+            // Split on spaces to allow overrides like "wrapper cargo".
+            const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
 
+            var easyPath  = await toolchain.linkerPath();
+            
+            if ( name == "ebuild" ||  name == "buildAELF" ||  name == "eemblang: buildAELF" ) {
+                easyPath = await toolchain.ebuildPath();
+            }
+
+            const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
+    
+            const fullCommand = [...easyCommand, ...args];
+    
+            exec = new vscode.ProcessExecution( fullCommand[0], fullCommand.slice(1), definition );
+        }
+    }
+    else
+    {
     if (!exec) {
         // Check whether we must use a user-defined substitute for cargo.
         // Split on spaces to allow overrides like "wrapper cargo".
         const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
         const easyPath = await toolchain.easyPath();
         const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
-
 
         const index = args.indexOf("-o", 0);
         if (index == -1) {
@@ -158,12 +183,12 @@ export async function buildEasyTask(
                 vscode.workspace.fs.createDirectory(uri);
             }));
         }
-
+        
         const fullCommand = [...easyCommand, ...args];
 
         exec = new vscode.ProcessExecution(fullCommand[0], fullCommand.slice(1), definition);
     }
-
+    }
     return new vscode.Task(
         definition,
         // scope can sometimes be undefined. in these situations we default to the workspace taskscope as
