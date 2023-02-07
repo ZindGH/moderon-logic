@@ -132,7 +132,12 @@ class EasyTaskProvider implements vscode.TaskProvider {
 export async function createTask(idx: number, config: Config): Promise<vscode.Task> {
 
 
-    const workspaceTarget = vscode.workspace.workspaceFolders?.at(0);
+    let workspaceTarget: vscode.WorkspaceFolder | undefined = undefined; 
+
+    for (const workspaceTarget0 of vscode.workspace.workspaceFolders || []) {
+        workspaceTarget = workspaceTarget0;
+        break;
+    }
 
 
     let ldPath = await toolchain.easyPath();

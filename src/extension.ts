@@ -16,14 +16,18 @@ import * as readline from "readline";
 
 import {EasyConfigurationProvider} from "./dbg";
 
+import * as os from "os";
+
 import {TableEditorProvider } from './ModbusEditor/tableEditor';
 
 
 import { URL } from 'url';
 
+//import { resolve } from 'path';
 
-async function downloadFile0(url: string | URL | https.RequestOptions, targetFile: fs.PathLike) {  
-  return await new Promise((resolve, reject) => {
+
+async function downloadFile0(url: string | URL | https.RequestOptions, targetFile: fs.PathLike, callback: () => void) {  
+  return new Promise((resolve, reject) => {
 
 
     https.get(url, response => {
@@ -38,7 +42,7 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 
       // handle redirects
       if (code > 300 && code < 400 && !!response.headers.location) {
-        return downloadFile0(response.headers.location, targetFile)
+        return downloadFile0(response.headers.location, targetFile, callback)
       }
 
       // save the file to disk
@@ -46,6 +50,7 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
         .createWriteStream(targetFile)
         .on('finish', () => {
           console.log("done");
+          callback();
           resolve({});
         })
 
@@ -55,6 +60,35 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
       reject(error)
     })
   })
+}
+
+
+async function chechToolchain() {  
+
+  let path = await toolchain.easyPath();
+  console.log(path);
+
+  let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const standardTmpPath = vscode.Uri.joinPath(
+    vscode.Uri.file(homeDir),
+    ".eec.zip");
+
+    const standardPath = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir));
+    console.log(standardTmpPath);
+
+  if (path == "notFound") {
+    let result = await downloadFile0("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/.eec.zip", standardTmpPath.fsPath, () => {
+      console.log("done2");
+      var unzip = require('unzip-stream');
+      var fs = require('fs-extra'); 
+
+      fs.createReadStream(standardTmpPath.fsPath).pipe(unzip.Extract({ path: standardPath.fsPath }));
+    });
+      
+    
+  }
+
 }
 
 
@@ -214,12 +248,7 @@ async function checkDepencies() {
 }
 
 
-async function chechToolchain() {  
 
-  let path = await toolchain.easyPath();
-  console.log(path!);
-
-}
 
 export function activate(context: vscode.ExtensionContext) {
 
