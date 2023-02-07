@@ -9,7 +9,7 @@ import * as toolchain from './toolchain';
 import * as cp from "child_process";
 
 import { Config,  substituteVSCodeVariables } from "./config";
-import { activateTaskProvider } from "./tasks";
+import { activateTaskProvider, createTask } from "./tasks";
 import { isEasyDocument, execute } from "./util";
 
 import * as readline from "readline";
@@ -213,10 +213,18 @@ async function checkDepencies() {
  
 }
 
+
+async function chechToolchain() {  
+
+  let path = await toolchain.easyPath();
+  console.log(path!);
+
+}
+
 export function activate(context: vscode.ExtensionContext) {
 
 
-  console.log("Hello, World!");
+  //console.log("Hello, World!");
 
   let extation = vscode.extensions.getExtension("YouTooLife.vscode-eemblang");
   
@@ -224,10 +232,35 @@ export function activate(context: vscode.ExtensionContext) {
   
   let config = new Config(context);
 
+  chechToolchain();
+ 
+
+
 
   vscode.debug.onDidStartDebugSession((e) => {
     console.log(e);
     //checkDepencies();
+  });
+
+  
+  vscode.tasks.onDidEndTaskProcess(async (e) => {
+
+    console.log(e.execution.task.name);
+    const tsk: tasks.EasyTaskDefinition = (e.execution.task.definition as tasks.EasyTaskDefinition);
+
+    if (tsk as tasks.EasyTaskDefinition)
+    {
+      if (tsk.command == "build" && e.exitCode == 0)
+      {
+        const task = await createTask(2, config);
+        const exec = await vscode.tasks.executeTask(task);
+      }
+      else if (tsk.command == "link" && e.exitCode == 0) {
+        const task = await createTask(3, config);
+        const exec = await vscode.tasks.executeTask(task);
+      }
+    }
+
   });
 
   context.subscriptions.push(activateTaskProvider(config));
@@ -239,20 +272,24 @@ export function activate(context: vscode.ExtensionContext) {
     });
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', config => {
-    return vscode.window.showInformationMessage("Body", "Ok");
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', async config => {
+    const task = await createTask(0, config);
+    const exec = await vscode.tasks.executeTask(task);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.runSimulator', config => {
-    return vscode.window.showInformationMessage("Run", "Ok");
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.runSimulator', async config =>  {
+    const task = await createTask(1, config);
+    const exec = await vscode.tasks.executeTask(task);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flash', config => {
     return vscode.window.showInformationMessage("Flash", "Ok");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flush', config => {
-    return vscode.window.showInformationMessage("Flush", "Ok");
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flush', async config => {
+    const task = await createTask(4, config);
+    const exec = await vscode.tasks.executeTask(task);
+    //return vscode.window.showInformationMessage("Flush", "Ok");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.attach', config => {
