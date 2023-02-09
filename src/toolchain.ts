@@ -5,6 +5,9 @@ import * as readline from "readline";
 import * as vscode from "vscode";
 import { execute, log, memoizeAsync } from "./util";
 
+import * as fs from 'fs';
+import * as https from 'https';
+
 interface CompilationArtifact {
     fileName: string;
     name: string;
@@ -157,6 +160,220 @@ export function flasherPath(): Promise<string> {
     return getPathForExecutable("eflash");
 }
 
+
+
+import fetch from 'node-fetch';
+import { ClientRequest } from 'http';
+import { rejects } from 'assert';
+
+
+
+ async function installToolchain(): Promise<boolean> {
+  
+  let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const standardTmpPath = vscode.Uri.joinPath(
+    vscode.Uri.file(homeDir),
+    ".eec.zip");
+
+    const standardPath = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir));
+    console.log(standardTmpPath);
+
+  let result = false;
+
+  const prog = await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Downloading...",
+      cancellable: true
+  }, async (progress, token) => {
+      
+    progress.report({message: "0 Mbyte", increment: 0});
+
+
+    let totalSize = 1;
+    let prevSize = 0;
+    let currentSize = 0;
+
+    let request: ClientRequest;
+
+    let isTerminated = false;
+
+    async function download(url: string | URL | https.RequestOptions, targetFile: fs.PathLike): Promise<boolean> {  
+      return new Promise((resolve, reject) => {
+
+          request = https.get(url, response => {
+    
+          const code = response.statusCode ?? 0
+    
+          if (code >= 400) {
+            isTerminated = true;
+            reject(new Error(response.statusMessage));
+          }
+    
+          // handle redirects
+          if (code > 300 && code < 400 && !!response.headers.location) {
+            resolve(download(response.headers.location, targetFile));
+            return;
+          }
+    
+          totalSize = Number(response.headers['content-length']);
+          console.log(totalSize);
+    
+      const fileWriter = fs
+      .createWriteStream(targetFile)
+      .on('finish', () => {
+        console.log("done");
+        progress.report({ message: "Installing...", increment: 99 });
+        var unzip = require('unzip-stream');
+        var fs = require('fs-extra'); 
+        fs.createReadStream(standardTmpPath.fsPath).pipe(unzip.Extract({ path: standardPath.fsPath }));
+        progress.report({ message: "Installing...", increment: 100 });
+        isTerminated = true;
+        resolve(true);
+        
+      }).on('error', () => {
+        console.log("err");
+        isTerminated = true;
+        resolve(false);
+      });
+
+    response.on('data', (chunk) => {
+       const buffer = chunk as Buffer;
+       prevSize = currentSize;
+       //currentSize += 1024*1024;//buffer.byteLength;
+       currentSize += buffer.byteLength;
+     });
+
+     response.on('error', () => {
+        console.log("err");
+        isTerminated = true;
+        resolve(false);
+    });
+
+
+      response.pipe(fileWriter);
+    
+    
+        }).on('error', error => {
+          console.log("err");
+          isTerminated = true;
+          resolve(false);
+      }).setTimeout(10000).on('timeout',() => {
+        console.log("err");
+        isTerminated = true;
+        resolve(false);
+      });
+
+      //resolve(true);
+    });}
+
+    const result0 = download("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/.eec.zip", standardTmpPath.fsPath);
+
+    token.onCancellationRequested(() => {
+      console.log("User canceled the long running operation");
+      request.destroy();
+    });
+
+    let prevPer = 0;
+    while (totalSize > currentSize && !isTerminated)
+    {
+      await new Promise(f => setTimeout(f, 1000));
+      totalSize = totalSize ? totalSize : 1;
+       const inPerc = Math.round(((currentSize))*100 / totalSize);
+       const inc = inPerc - prevPer;
+       prevPer = inPerc;
+       const currentSizeInMb =  Math.round((currentSize / 1024) / 1024) ;
+       const totalSizeInMb = Math.round((totalSize / 1024) / 1024);
+       console.log("["+currentSizeInMb+"/"+totalSizeInMb+" Mbytes]", inPerc);
+       progress.report({ message: "["+currentSizeInMb+"/"+totalSizeInMb+" Mbytes]", increment: inc });
+
+       if (token.isCancellationRequested)
+       {
+          return false;
+       }
+      // const interval = setInterval(() => 
+      // {
+       
+      // }, 1000);
+    }
+
+    result = await result0;
+
+    return;
+    })
+
+    console.log("Alarm");
+    
+
+    return result;
+}
+
+
+
+export async function checkToolchain(): Promise<boolean> {  
+
+  //let path = await toolchain.easyPath();
+  //console.log(path);
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  // const standardTmpPath = vscode.Uri.joinPath(
+  //   vscode.Uri.file(homeDir),
+  //   ".eec.zip");
+
+  //   const standardPath = vscode.Uri.joinPath(
+  //     vscode.Uri.file(homeDir));
+  //   console.log(standardTmpPath);
+
+    const verFile = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir), ".eec", "toolchain.json");
+
+  const toolchainFile = await isFileAtUri(verFile);
+
+  if (!toolchainFile) {
+    let buttons = ['Install', 'Not now'];
+    let choice = await vscode.window.showWarningMessage(`EEmbLang Toolchain is not installed!\nDo you want Download and Install now?`, ...buttons);
+    if (choice === buttons[0]) {
+      let res = await installToolchain();
+      return res;
+    }
+    return false;
+  }
+
+  type CfgType = {
+    ver: string;
+  }
+  
+  function isCfgType(o: any): o is CfgType {
+    return "ver" in o 
+  }
+  
+  const response = await fetch("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/toolchain.json");
+  const data = await response.json();
+  // const parsed = JSON.parse(json)
+  if (isCfgType(data)) {
+    console.log(data.ver);
+
+    const raw = fs.readFileSync(verFile.fsPath).toString();
+    const currentVer = JSON.parse(raw);
+
+    if (isCfgType(currentVer)) {
+      if (currentVer.ver != data.ver) {
+        let buttons = ['Install', 'Not now'];
+        let choice = await vscode.window.showInformationMessage(`New EEmbLang Toolchain is available!\nDo you want Download and Install now?`, ...buttons);
+        if (choice === buttons[0]) {
+          return await installToolchain();
+        }
+      }
+    }
+  }
+
+  return false;
+
+}
+
+
+
+
+
 /** Mirrors `toolchain::get_path_for_executable()` implementation */
 export const getPathForExecutable = memoizeAsync(
     // We apply caching to decrease file-system interactions
@@ -213,7 +430,7 @@ async function isFileAtPath(path: string): Promise<boolean> {
     return isFileAtUri(vscode.Uri.file(path));
 }
 
-async function isFileAtUri(uri: vscode.Uri): Promise<boolean> {
+export async function isFileAtUri(uri: vscode.Uri): Promise<boolean> {
     try {
         return ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.File) !== 0;
     } catch {

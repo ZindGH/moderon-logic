@@ -284,6 +284,10 @@
         ],
         "commands": [
             {
+                "command": "vscode-eemblang.progress",
+                "title": "example"
+            },
+            {
                 "command": "extension.vscode-eemblang.getProgramName",
                 "title": "Get prog name"
             },

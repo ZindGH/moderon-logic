@@ -44,21 +44,32 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
         return downloadFile0(response.headers.location, targetFile, callback)
       }
 
+      const length = response.headers['content-length'];
+      console.log(length);
+
       // save the file to disk
       const fileWriter = fs
         .createWriteStream(targetFile)
-        .on('finish', () => {
-          console.log("done");
-          callback();
-          resolve({});
-        })
+        // .on('finish', () => {
+        //   //console.log("done");
+        //   callback();
+        //   resolve({});
+        //})
 
-      response.pipe(fileWriter)
+      response.on('data', (chunk) => {
+         const buffer = chunk as Buffer;
+         console.log("chunk", chunk);
+       })
+      response.pipe(fileWriter);
+      //response.on('data')
+
+
     }).on('error', error => {
       console.log("err");
       reject(error)
-    })
   })
+});
+
 }
 
 
@@ -116,72 +127,6 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 //       request(method, url, content, resolve, reject);
 //   });
 // }
-
-
-async function sendRequest(url: string | URL | https.RequestOptions, successCallback: () => void, errCallback: () => void): Promise<any> {
-
-  const fetch = require('node-fetch');
-
-
-  const response = await fetch(url, {
-    method: 'POST',
-    body: JSON.stringify(""),
-  }).then((response: { json: () => any; }) => response.json());
-
-  console.log(response);
-
-  return response;
-}
-
-
-async function checkToolchain() {  
-
-  let path = await toolchain.easyPath();
-  console.log(path);
-
-  type CfgType = {
-    ver: string;
-  }
-
-  
-  
-  function isCfgType(o: any): o is CfgType {
-    return "ver" in o 
-  }
-  
-  //const json = '{ "ver": "1.0", "description": "Bar" }';
-  const json = await sendRequest("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/toolchain.json", () => {}, () => {});
-  const parsed = JSON.parse(json)
-  if (isCfgType(parsed)) {
-    // do something with correctly typed object
-    console.log(parsed.ver);
-  } else {
-    // error handling; invalid JSON format
-    console.log("Invalid type");
-  }
-
-  let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-  const standardTmpPath = vscode.Uri.joinPath(
-    vscode.Uri.file(homeDir),
-    ".eec.zip");
-
-    const standardPath = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir));
-    console.log(standardTmpPath);
-
-  if (path == "notFound") {
-    let result = await downloadFile0("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/.eec.zip", standardTmpPath.fsPath, () => {
-      console.log("done2");
-      var unzip = require('unzip-stream');
-      var fs = require('fs-extra'); 
-
-      fs.createReadStream(standardTmpPath.fsPath).pipe(unzip.Extract({ path: standardPath.fsPath }));
-    });
-      
-    
-  }
-
-}
 
 
 export type Workspace =
@@ -353,8 +298,48 @@ export function activate(context: vscode.ExtensionContext) {
   
   let config = new Config(context);
 
-  checkToolchain();
+  //checkToolchain();
+  //installToolchain();
+  toolchain.checkToolchain();
+
+//   vscode.window.withProgress({
+//     location: vscode.ProgressLocation.Notification,
+//     title: "Downloading...",
+//     cancellable: true
+// }, async (progress, token) => {
+//     token.onCancellationRequested(() => {
+//         console.log("User canceled the long running operation");
+//     });
+//     progress.report({message: "Download...", increment: 0});
+
+//     for (var _i = 0; _i < 100; _i++) {
+//       await new Promise(f => setTimeout(f, 100));
+//       progress.report({message: "Download...()", increment: _i});
+//     }
+
+//   });
  
+
+context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.progress', async config => {
+  vscode.window.withProgress({
+    location: vscode.ProgressLocation.Notification,
+    title: "Downloading...",
+    cancellable: true
+}, async (progress, token) => {
+    token.onCancellationRequested(() => {
+        console.log("User canceled the long running operation");
+    });
+    progress.report({message: "Download...", increment: 0});
+
+    for (var _i = 0; _i < 100; _i++) {
+      await new Promise(f => setTimeout(f, 100));
+      progress.report({message: "Download...", increment: 1});
+    }
+
+  });
+})
+
+);
 
 
 

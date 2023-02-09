@@ -26,6 +26,8 @@ export interface EasyTaskDefinition extends vscode.TaskDefinition {
     dependsOn?: string;
 }
 
+let isFoundToolchain = false;
+
 class EasyTaskProvider implements vscode.TaskProvider {
     private readonly config: Config;
 
@@ -100,6 +102,14 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // VSCode calls this for every cargo task in the user's tasks.json,
         // we need to inform VSCode how to execute that command by creating
         // a ShellExecution for it.
+        if (!isFoundToolchain) {
+            isFoundToolchain = await toolchain.checkToolchain();
+            if (!isFoundToolchain)
+            {
+                vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
+                return undefined;
+            }
+        }
 
         const definition = task.definition as EasyTaskDefinition;
 
@@ -120,6 +130,15 @@ class EasyTaskProvider implements vscode.TaskProvider {
 
 export async function createTask(idx: number, config: Config): Promise<vscode.Task> {
 
+
+    if (!isFoundToolchain) {
+        isFoundToolchain = await toolchain.checkToolchain();
+        if (!isFoundToolchain)
+        {
+            vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
+            return new Promise((resolve, reject) => { reject(); });
+        }
+    }
 
     let workspaceTarget: vscode.WorkspaceFolder | undefined = undefined; 
 
