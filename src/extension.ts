@@ -150,7 +150,7 @@ async function checkToolchain() {
   }
   
   //const json = '{ "ver": "1.0", "description": "Bar" }';
-  const json = await sendRequest("", () => {}, () => {});
+  const json = await sendRequest("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/toolchain.json", () => {}, () => {});
   const parsed = JSON.parse(json)
   if (isCfgType(parsed)) {
     // do something with correctly typed object
