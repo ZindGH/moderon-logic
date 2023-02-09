@@ -22,6 +22,7 @@ import {TableEditorProvider } from './ModbusEditor/tableEditor';
 
 
 import { URL } from 'url';
+import { resolve } from 'path';
 
 //import { resolve } from 'path';
 
@@ -31,8 +32,6 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 
 
     https.get(url, response => {
-
-      console.log("HW2");
 
       const code = response.statusCode ?? 0
 
@@ -63,10 +62,103 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 }
 
 
-async function chechToolchain() {  
+
+//   console.log(response);
+
+// if (!response.ok) { /* Handle */ }
+
+// // If you care about a response:
+// if (response.body !== null) {
+//   // body is ReadableStream<Uint8Array>
+//   // parse as needed, e.g. reading directly, or
+//   const asString = new TextDecoder("utf-8").decode(response.body);
+//   // and further:
+//   const asJSON = JSON.parse(asString);  // implicitly 'any', make sure to verify type on runtime.
+// }
+
+// function request<Request, Response>(
+//   method: 'GET' | 'POST',
+//   url: string,
+//   content?: Request,
+//   callback?: (response: Response) => void,
+//   errorCallback?: (err: any) => void) {
+
+// const request = new XMLHttpRequest();
+// request.open(method, url, true);
+// request.onload = function () {
+//   if (this.status >= 200 && this.status < 400) {
+//       // Success!
+//       const data = JSON.parse(this.response) as Response;
+//       callback && callback(data);
+//   } else {
+//       // We reached our target server, but it returned an error
+//   }
+// };
+
+// request.onerror = function (err) {
+//   // There was a connection error of some sort
+//   errorCallback && errorCallback(err);
+// };
+// if (method === 'POST') {
+//   request.setRequestHeader(
+//       'Content-Type',
+//       'application/x-www-form-urlencoded; charset=UTF-8');
+// }
+// request.send(content);
+// }
+
+// function request2<Request, Response>(
+//   method: 'GET' | 'POST',
+//   url: string,
+//   content?: Request
+// ): Promise<Response> {
+//   return new Promise<Response>((resolve, reject) => {
+//       request(method, url, content, resolve, reject);
+//   });
+// }
+
+
+async function sendRequest(url: string | URL | https.RequestOptions, successCallback: () => void, errCallback: () => void): Promise<any> {
+
+  const fetch = require('node-fetch');
+
+
+  const response = await fetch(url, {
+    method: 'POST',
+    body: JSON.stringify(""),
+  }).then((response: { json: () => any; }) => response.json());
+
+  console.log(response);
+
+  return response;
+}
+
+
+async function checkToolchain() {  
 
   let path = await toolchain.easyPath();
   console.log(path);
+
+  type CfgType = {
+    ver: string;
+  }
+
+  
+  
+  function isCfgType(o: any): o is CfgType {
+    return "ver" in o 
+  }
+  
+  //const json = '{ "ver": "1.0", "description": "Bar" }';
+  const json = await sendRequest("", () => {}, () => {});
+  const parsed = JSON.parse(json)
+  if (isCfgType(parsed)) {
+    // do something with correctly typed object
+    console.log(parsed.ver);
+  } else {
+    // error handling; invalid JSON format
+    console.log("Invalid type");
+  }
 
   let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
   const standardTmpPath = vscode.Uri.joinPath(
@@ -261,7 +353,7 @@ export function activate(context: vscode.ExtensionContext) {
   
   let config = new Config(context);
 
-  chechToolchain();
+  checkToolchain();
  
 
 
@@ -302,7 +394,8 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', async config => {
-    const task = await createTask(0, config);
+    const task = 
+    await createTask(0, config);
     const exec = await vscode.tasks.executeTask(task);
   }));
 

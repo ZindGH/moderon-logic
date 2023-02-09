@@ -61,12 +61,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 "-m", "${cwd}\\out\\output.map",
                 "-c", "${cwd}\\out\\test.cpp_CFG.bin",
                 "-r", "${cwd}\\out\\test.cpp_RES.bin" ]
-                , group: undefined, dependsOn: "eemblang: linker" },
-            { command: "utilite", name: "utilite", args: [
-                "-eec", "pathToEec -target thumbv7m-none-none-eabi -emit-llvm -g -O3",
-                "-lld", "pathToLinker ",
-                "-ebuild", "{pathToEbuild}" ]
-                , group: undefined },
+                , group: undefined }
         ];
 
         const tasks: vscode.Task[] = [];
@@ -77,12 +72,6 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 if ( def.command == "link" || def.command == "ebuild"  )
                 {
                     args0 = def.args;
-                }
-                else if ( def.command == "utilite" )
-                {
-                    args0 = [ "-eec", pathToEec,  "${pwd}/main.es", "-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"] 
-                    //.concat( [ "-lld" ] ).concat( [ "\""+pathToLinker+"\"" ] + ` "${workspaceTarget.uri.fsPath}\\out\\output.o" --format=elf --Map="${workspaceTarget.uri.fsPath}\\out\\target.map" "${workspaceTarget.uri.fsPath}\\out\\target.ld" -o "${workspaceTarget.uri.fsPath}\\out\\target.o" -nostdlib` )
-                    //.concat( [ "-ebuild" ] ).concat( [ "\""+pathToEbuild+"\"" ] + ` -f "${workspaceTarget.uri.fsPath}\\out\\target_out.o" -o "${workspaceTarget.uri.fsPath}\\out\\prog.alf" -m "${workspaceTarget.uri.fsPath}\\out\\output.map" -c "${workspaceTarget.uri.fsPath}\\out\\test.cpp_CFG.bin" -r "${workspaceTarget.uri.fsPath}\\out\\test.cpp_RES.bin"` );
                 }
                 else
                 {
