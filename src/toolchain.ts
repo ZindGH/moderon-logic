@@ -366,7 +366,7 @@ export async function checkToolchain(): Promise<boolean> {
     }
   }
 
-  return false;
+  return true;
 
 }
 
