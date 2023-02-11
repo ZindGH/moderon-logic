@@ -150,8 +150,10 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
 
     let ldPath = await toolchain.easyPath();
     const pIdx = ldPath.lastIndexOf("bin");
+    let libPath = "";
     if (pIdx !== -1)
     {
+        libPath = ldPath.substring(0, pIdx-1) + "/";
         ldPath = ldPath.substring(0, pIdx-1) + "/targets/target_out.ld";
     }
 
@@ -160,6 +162,17 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
         { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         { command: "link", name: "linker", args: [
             "${cwd}\\out\\output.o",
+            //`${libPath}bin/dl7M_tln.a`,
+            //-`${libPath}bin/m7M_tl.a`,
+            `${libPath}targets/v7-m/nofp/libc.a`,
+            `${libPath}targets/v7-m/nofp/libg.a`,
+            `${libPath}targets/v7-m/nofp/libm.a`,
+           // `${libPath}targets/v7-m/nofp/libsemihost.a`,
+            //`${libPath}targets/v7-m/nofp/crt0.o`,
+            //`${libPath}targets/v7-m/nofp/crt0-hosted.o`,
+            //`${libPath}targets/v7-m/nofp/crt0-semihost.o`,
+           // `${libPath}bin/rt7M_tl.a`,
+            //`${libPath}bin/shb_l.a`,
             "--format=elf",
             "--Map=${cwd}\\out\\output.map",
             ldPath,
