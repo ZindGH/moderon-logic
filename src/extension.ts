@@ -22,6 +22,7 @@ import {TableEditorProvider } from './ModbusEditor/tableEditor';
 
 
 import { URL } from 'url';
+import { resolve } from 'path';
 
 //import { resolve } from 'path';
 
@@ -31,8 +32,6 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 
 
     https.get(url, response => {
-
-      console.log("HW2");
 
       const code = response.statusCode ?? 0
 
@@ -45,51 +44,89 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
         return downloadFile0(response.headers.location, targetFile, callback)
       }
 
+      const length = response.headers['content-length'];
+      console.log(length);
+
       // save the file to disk
       const fileWriter = fs
         .createWriteStream(targetFile)
-        .on('finish', () => {
-          console.log("done");
-          callback();
-          resolve({});
-        })
+        // .on('finish', () => {
+        //   //console.log("done");
+        //   callback();
+        //   resolve({});
+        //})
 
-      response.pipe(fileWriter)
+      response.on('data', (chunk) => {
+         const buffer = chunk as Buffer;
+         console.log("chunk", chunk);
+       })
+      response.pipe(fileWriter);
+      //response.on('data')
+
+
     }).on('error', error => {
       console.log("err");
       reject(error)
-    })
   })
-}
-
-
-async function chechToolchain() {  
-
-  let path = await toolchain.easyPath();
-  console.log(path);
-
-  let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-  const standardTmpPath = vscode.Uri.joinPath(
-    vscode.Uri.file(homeDir),
-    ".eec.zip");
-
-    const standardPath = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir));
-    console.log(standardTmpPath);
-
-  if (path == "notFound") {
-    let result = await downloadFile0("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/.eec.zip", standardTmpPath.fsPath, () => {
-      console.log("done2");
-      var unzip = require('unzip-stream');
-      var fs = require('fs-extra'); 
-
-      fs.createReadStream(standardTmpPath.fsPath).pipe(unzip.Extract({ path: standardPath.fsPath }));
-    });
-      
-    
-  }
+});
 
 }
+
+
+
+//   console.log(response);
+
+// if (!response.ok) { /* Handle */ }
+
+// // If you care about a response:
+// if (response.body !== null) {
+//   // body is ReadableStream<Uint8Array>
+//   // parse as needed, e.g. reading directly, or
+//   const asString = new TextDecoder("utf-8").decode(response.body);
+//   // and further:
+//   const asJSON = JSON.parse(asString);  // implicitly 'any', make sure to verify type on runtime.
+// }
+
+// function request<Request, Response>(
+//   method: 'GET' | 'POST',
+//   url: string,
+//   content?: Request,
+//   callback?: (response: Response) => void,
+//   errorCallback?: (err: any) => void) {
+
+// const request = new XMLHttpRequest();
+// request.open(method, url, true);
+// request.onload = function () {
+//   if (this.status >= 200 && this.status < 400) {
+//       // Success!
+//       const data = JSON.parse(this.response) as Response;
+//       callback && callback(data);
+//   } else {
+//       // We reached our target server, but it returned an error
+//   }
+// };
+
+// request.onerror = function (err) {
+//   // There was a connection error of some sort
+//   errorCallback && errorCallback(err);
+// };
+// if (method === 'POST') {
+//   request.setRequestHeader(
+//       'Content-Type',
+//       'application/x-www-form-urlencoded; charset=UTF-8');
+// }
+// request.send(content);
+// }
+
+// function request2<Request, Response>(
+//   method: 'GET' | 'POST',
+//   url: string,
+//   content?: Request
+// ): Promise<Response> {
+//   return new Promise<Response>((resolve, reject) => {
+//       request(method, url, content, resolve, reject);
+//   });
+// }
 
 
 export type Workspace =
@@ -261,8 +298,48 @@ export function activate(context: vscode.ExtensionContext) {
   
   let config = new Config(context);
 
-  chechToolchain();
+  //checkToolchain();
+  //installToolchain();
+  toolchain.checkToolchain();
+
+//   vscode.window.withProgress({
+//     location: vscode.ProgressLocation.Notification,
+//     title: "Downloading...",
+//     cancellable: true
+// }, async (progress, token) => {
+//     token.onCancellationRequested(() => {
+//         console.log("User canceled the long running operation");
+//     });
+//     progress.report({message: "Download...", increment: 0});
+
+//     for (var _i = 0; _i < 100; _i++) {
+//       await new Promise(f => setTimeout(f, 100));
+//       progress.report({message: "Download...()", increment: _i});
+//     }
+
+//   });
  
+
+context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.progress', async config => {
+  vscode.window.withProgress({
+    location: vscode.ProgressLocation.Notification,
+    title: "Downloading...",
+    cancellable: true
+}, async (progress, token) => {
+    token.onCancellationRequested(() => {
+        console.log("User canceled the long running operation");
+    });
+    progress.report({message: "Download...", increment: 0});
+
+    for (var _i = 0; _i < 100; _i++) {
+      await new Promise(f => setTimeout(f, 100));
+      progress.report({message: "Download...", increment: 1});
+    }
+
+  });
+})
+
+);
 
 
 
@@ -302,7 +379,8 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', async config => {
-    const task = await createTask(0, config);
+    const task = 
+    await createTask(0, config);
     const exec = await vscode.tasks.executeTask(task);
   }));
 

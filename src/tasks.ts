@@ -26,6 +26,8 @@ export interface EasyTaskDefinition extends vscode.TaskDefinition {
     dependsOn?: string;
 }
 
+let isFoundToolchain = false;
+
 class EasyTaskProvider implements vscode.TaskProvider {
     private readonly config: Config;
 
@@ -61,12 +63,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 "-m", "${cwd}\\out\\output.map",
                 "-c", "${cwd}\\out\\test.cpp_CFG.bin",
                 "-r", "${cwd}\\out\\test.cpp_RES.bin" ]
-                , group: undefined, dependsOn: "eemblang: linker" },
-            { command: "utilite", name: "utilite", args: [
-                "-eec", "pathToEec -target thumbv7m-none-none-eabi -emit-llvm -g -O3",
-                "-lld", "pathToLinker ",
-                "-ebuild", "{pathToEbuild}" ]
-                , group: undefined },
+                , group: undefined }
         ];
 
         const tasks: vscode.Task[] = [];
@@ -77,12 +74,6 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 if ( def.command == "link" || def.command == "ebuild"  )
                 {
                     args0 = def.args;
-                }
-                else if ( def.command == "utilite" )
-                {
-                    args0 = [ "-eec", pathToEec,  "${pwd}/main.es", "-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"] 
-                    //.concat( [ "-lld" ] ).concat( [ "\""+pathToLinker+"\"" ] + ` "${workspaceTarget.uri.fsPath}\\out\\output.o" --format=elf --Map="${workspaceTarget.uri.fsPath}\\out\\target.map" "${workspaceTarget.uri.fsPath}\\out\\target.ld" -o "${workspaceTarget.uri.fsPath}\\out\\target.o" -nostdlib` )
-                    //.concat( [ "-ebuild" ] ).concat( [ "\""+pathToEbuild+"\"" ] + ` -f "${workspaceTarget.uri.fsPath}\\out\\target_out.o" -o "${workspaceTarget.uri.fsPath}\\out\\prog.alf" -m "${workspaceTarget.uri.fsPath}\\out\\output.map" -c "${workspaceTarget.uri.fsPath}\\out\\test.cpp_CFG.bin" -r "${workspaceTarget.uri.fsPath}\\out\\test.cpp_RES.bin"` );
                 }
                 else
                 {
@@ -111,6 +102,14 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // VSCode calls this for every cargo task in the user's tasks.json,
         // we need to inform VSCode how to execute that command by creating
         // a ShellExecution for it.
+        if (!isFoundToolchain) {
+            isFoundToolchain = await toolchain.checkToolchain();
+            if (!isFoundToolchain)
+            {
+                vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
+                return undefined;
+            }
+        }
 
         const definition = task.definition as EasyTaskDefinition;
 
@@ -132,6 +131,15 @@ class EasyTaskProvider implements vscode.TaskProvider {
 export async function createTask(idx: number, config: Config): Promise<vscode.Task> {
 
 
+    if (!isFoundToolchain) {
+        isFoundToolchain = await toolchain.checkToolchain();
+        if (!isFoundToolchain)
+        {
+            vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
+            return new Promise((resolve, reject) => { reject(); });
+        }
+    }
+
     let workspaceTarget: vscode.WorkspaceFolder | undefined = undefined; 
 
     for (const workspaceTarget0 of vscode.workspace.workspaceFolders || []) {
@@ -142,8 +150,10 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
 
     let ldPath = await toolchain.easyPath();
     const pIdx = ldPath.lastIndexOf("bin");
+    let libPath = "";
     if (pIdx !== -1)
     {
+        libPath = ldPath.substring(0, pIdx-1) + "/";
         ldPath = ldPath.substring(0, pIdx-1) + "/targets/target_out.ld";
     }
 
@@ -152,6 +162,17 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
         { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         { command: "link", name: "linker", args: [
             "${cwd}\\out\\output.o",
+            `${libPath}bin/dl7M_tln.a`,
+            `${libPath}bin/m7M_tl.a`,
+            // `${libPath}targets/v7-m/nofp/libc.a`,
+            // `${libPath}targets/v7-m/nofp/libg.a`,
+            // `${libPath}targets/v7-m/nofp/libm.a`,
+           // `${libPath}targets/v7-m/nofp/libsemihost.a`,
+            //`${libPath}targets/v7-m/nofp/crt0.o`,
+            //`${libPath}targets/v7-m/nofp/crt0-hosted.o`,
+            //`${libPath}targets/v7-m/nofp/crt0-semihost.o`,
+           // `${libPath}bin/rt7M_tl.a`,
+            //`${libPath}bin/shb_l.a`,
             "--format=elf",
             "--Map=${cwd}\\out\\output.map",
             ldPath,
