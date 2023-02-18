@@ -13,6 +13,7 @@ import { rejects } from "assert";
 
 import * as nodePath from 'path';
 import { openStdin } from "process";
+import { Console } from "console";
 
 const posixPath = nodePath.posix || nodePath;
 
@@ -22,6 +23,7 @@ export interface EasyTaskDefinition extends vscode.TaskDefinition {
     cwd?: string;
     env?: { [key: string]: string };
     overrideEasy?: string;
+    dependsOn?: string;
 }
 
 class EasyTaskProvider implements vscode.TaskProvider {
@@ -37,36 +39,50 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // set of tasks that always exist. These tasks cannot be removed in
         // tasks.json - only tweaked.
 
+        const pathToEec  = await toolchain.easyPath();
+        const pathToLinker  = await toolchain.linkerPath();
+        const pathToEbuild  = await toolchain.ebuildPath();
+
         const defs = [
             { command: "build", name: "Build for Device", args: ["-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
             { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
             { command: "link", name: "linker", args: [
-            "${cwd}\\out\\output.o",
-            "--format=elf",
-            "--Map=${cwd}\\out\\target.map",
-            "${cwd}\\out\\target.ld",
-            "-o",
-            "${cwd}\\out\\target.o",
-            "-nostdlib" ]
-            , group: undefined },
+                "${cwd}\\out\\output.o",
+                "--format=elf",
+                "--Map=${cwd}\\out\\target.map",
+                "${cwd}\\out\\target.ld",
+                "-o",
+                "${cwd}\\out\\target.o",
+                "-nostdlib" ]
+            , group: undefined, /*dependsOn: "eemblang: Build for Device"*/ },
             { command: "ebuild", name: "buildAELF", args: [
                 "-f", "${cwd}\\out\\target_out.o",
                 "-o", "${cwd}\\out\\prog.alf",
                 "-m", "${cwd}\\out\\output.map",
                 "-c", "${cwd}\\out\\test.cpp_CFG.bin",
                 "-r", "${cwd}\\out\\test.cpp_RES.bin" ]
-                , group: undefined, dependsOn: ["build", "linker"] },
+                , group: undefined, dependsOn: "eemblang: linker" },
+            { command: "utilite", name: "utilite", args: [
+                "-eec", "pathToEec -target thumbv7m-none-none-eabi -emit-llvm -g -O3",
+                "-lld", "pathToLinker ",
+                "-ebuild", "{pathToEbuild}" ]
+                , group: undefined },
         ];
-
 
         const tasks: vscode.Task[] = [];
         for (const workspaceTarget of vscode.workspace.workspaceFolders || []) {
-            for (const def of defs) {
+            for ( const def of defs ) {
                 var args0;
                 
-                if ( def.command == "link" || def.command == "ebuild" )
+                if ( def.command == "link" || def.command == "ebuild"  )
                 {
                     args0 = def.args;
+                }
+                else if ( def.command == "utilite" )
+                {
+                    args0 = [ "-eec", pathToEec,  "${pwd}/main.es", "-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"] 
+                    //.concat( [ "-lld" ] ).concat( [ "\""+pathToLinker+"\"" ] + ` "${workspaceTarget.uri.fsPath}\\out\\output.o" --format=elf --Map="${workspaceTarget.uri.fsPath}\\out\\target.map" "${workspaceTarget.uri.fsPath}\\out\\target.ld" -o "${workspaceTarget.uri.fsPath}\\out\\target.o" -nostdlib` )
+                    //.concat( [ "-ebuild" ] ).concat( [ "\""+pathToEbuild+"\"" ] + ` -f "${workspaceTarget.uri.fsPath}\\out\\target_out.o" -o "${workspaceTarget.uri.fsPath}\\out\\prog.alf" -m "${workspaceTarget.uri.fsPath}\\out\\output.map" -c "${workspaceTarget.uri.fsPath}\\out\\test.cpp_CFG.bin" -r "${workspaceTarget.uri.fsPath}\\out\\test.cpp_RES.bin"` );
                 }
                 else
                 {
@@ -80,22 +96,25 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 this.config.easyRunner
                 );
                 vscodeTask.group = def.group;
-                tasks.push(vscodeTask); 
+                tasks.push( vscodeTask ); 
             }
         }
         return tasks;
     }
 
-    async resolveTask(task: vscode.Task): Promise<vscode.Task | undefined> {
+
+   
+
+
+
+    async resolveTask( task: vscode.Task ): Promise<vscode.Task | undefined> {
         // VSCode calls this for every cargo task in the user's tasks.json,
         // we need to inform VSCode how to execute that command by creating
         // a ShellExecution for it.
 
         const definition = task.definition as EasyTaskDefinition;
 
-console.log( "in resolveTask", definition.command );
-
-        if (definition.type === TASK_TYPE && definition.command) {
+        if ( definition.type === TASK_TYPE && definition.command ) {
             return await buildEasyTask(
                 task.scope,
                 definition,
@@ -109,6 +128,70 @@ console.log( "in resolveTask", definition.command );
     }
 }
 
+
+export async function createTask(idx: number, config: Config): Promise<vscode.Task> {
+
+
+    let workspaceTarget: vscode.WorkspaceFolder | undefined = undefined; 
+
+    for (const workspaceTarget0 of vscode.workspace.workspaceFolders || []) {
+        workspaceTarget = workspaceTarget0;
+        break;
+    }
+
+
+    let ldPath = await toolchain.easyPath();
+    const pIdx = ldPath.lastIndexOf("bin");
+    if (pIdx !== -1)
+    {
+        ldPath = ldPath.substring(0, pIdx-1) + "/targets/target_out.ld";
+    }
+
+    const defs = [
+        { command: "build", name: "Build for Device", args: ["-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
+        { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
+        { command: "link", name: "linker", args: [
+            "${cwd}\\out\\output.o",
+            "--format=elf",
+            "--Map=${cwd}\\out\\output.map",
+            ldPath,
+            "-o",
+            "${cwd}\\out\\output.elf",
+            "-nostdlib" ]
+        , group: undefined/*, dependsOn: "eemblang: Build for Device"*/ },
+        { command: "ebuild", name: "buildAELF", args: [
+            "-f", "${cwd}\\out\\output.elf",
+            "-o", "${cwd}\\out\\prog.alf",
+            "-m", "${cwd}\\out\\output.map",
+            "-c", "${cwd}\\out\\output_CFG.bin",
+            "-r", "${cwd}\\out\\output_RES.bin" ]
+            , group: undefined/*, dependsOn: "eemblang: linker" */},
+        { command: "flaher", name: "EEmbFlasher", args: ["${cwd}\\out\\prog.alf"], group: undefined  }
+    ];
+
+
+    
+
+    const def = defs[idx];
+
+
+    const args0 = (idx == 0 || idx == 1) ? [`${workspaceTarget!.uri.fsPath}/main.es`].concat(def.args) : def.args;
+
+    const vscodeTask = await buildEasyTask(
+        workspaceTarget,
+        { type: TASK_TYPE, command: def.command, args: args0 },
+        def.name,
+        args0,
+        config.easyRunner
+        );
+        vscodeTask.group = def.group;
+        vscodeTask.presentationOptions.showReuseMessage = false;
+
+    return vscodeTask;
+}
+
+
+
 export async function buildEasyTask(
     scope: vscode.WorkspaceFolder | vscode.TaskScope | undefined,
     definition: EasyTaskDefinition,
@@ -119,18 +202,24 @@ export async function buildEasyTask(
 ): Promise<vscode.Task> {
     let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
 
-    if ( name == "linker" || name == "ebuild" || name == "eemblang: buildAELF" || name == "eemblang: linker" )
+console.log( "command: ", definition.command );
+
+    if ( definition.command == "link"  || definition.command == "ebuild" || definition.command == "flaher" )
     {
-        if (!exec) {
+        if ( !exec ) {
             // Check whether we must use a user-defined substitute for cargo.
             // Split on spaces to allow overrides like "wrapper cargo".
             const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
 
             var easyPath  = await toolchain.linkerPath();
             
-            if( name == "ebuild" || name == "eemblang: buildAELF" )
+            if ( definition.command == "ebuild" )
             {
                 easyPath = await toolchain.ebuildPath();
+            }
+            else if ( definition.command == "flaher" )
+            {
+                easyPath = await toolchain.flasherPath();
             }
 
             const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
@@ -142,7 +231,7 @@ export async function buildEasyTask(
     }
     else
     {
-    if (!exec) {
+    if ( !exec ) {
         // Check whether we must use a user-defined substitute for cargo.
         // Split on spaces to allow overrides like "wrapper cargo".
         const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
@@ -180,7 +269,7 @@ export async function buildEasyTask(
         
         const fullCommand = [...easyCommand, ...args];
 
-        exec = new vscode.ProcessExecution(fullCommand[0], fullCommand.slice(1), definition);
+        exec = new vscode.ProcessExecution( fullCommand[0], fullCommand.slice(1), definition );
     }
     }
     return new vscode.Task(

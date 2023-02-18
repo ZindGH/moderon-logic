@@ -30,7 +30,8 @@
         "onLanguage:eemblang",
         "onCommand:extension.vscode-eemblang.getProgramName",
         "onCustomEditor:vscode-eemblang.tableEditor",
-        "onCommand:vscode-eemblang.modbus.locals.new"
+        "onCommand:vscode-eemblang.modbus.locals.new",
+        "onCommand:extension.vscode-eemblang.compileProject"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -46,26 +47,26 @@
         "vscode-debugadapter": "1.38.0-pre.4"
     },
     "devDependencies": {
-        "@types/vscode": "^1.72.0",
         "@types/glob": "^8.0.0",
         "@types/mocha": "^10.0.0",
         "@types/node": "16.x",
+        "@types/vscode": "^1.72.0",
         "@typescript-eslint/eslint-plugin": "^5.38.1",
         "@typescript-eslint/parser": "^5.38.1",
+        "@vscode/test-electron": "^2.1.5",
         "eslint": "^8.24.0",
         "glob": "^8.0.3",
-        "mocha": "^10.0.0",
-        "typescript": "^4.8.4",
-        "ts-loader": "^9.4.1",
-        "webpack": "^5.74.0",
-        "webpack-cli": "^4.10.0",
-        "@vscode/test-electron": "^2.1.5",
         "http-proxy-agent": "^2.1.0",
         "https-proxy-agent": "^2.2.4",
         "mkdirp": "^1.0.3",
+        "mocha": "^10.0.0",
         "tmp": "0.2.1",
-        "yauzl": "^2.10.0",
-        "vscode-debugadapter-testsupport": "1.37.0"
+        "ts-loader": "^9.4.1",
+        "typescript": "^4.8.4",
+        "vscode-debugadapter-testsupport": "1.37.0",
+        "webpack": "^5.74.0",
+        "webpack-cli": "^4.10.0",
+        "yauzl": "^2.10.0"
     },
     "contributes": {
         "languages": [
@@ -241,6 +242,9 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "dependsOn": {
+                        "type": "string"
                     }
                 }
             }
@@ -287,10 +291,108 @@
                 "command": "vscode-eemblang.modbus.locals.new",
                 "title": "Create new Local Modbus table",
                 "category": "Modbus table"
+            },
+            {
+                "command": "vscode-eemblang.compileProject",
+                "title": "Compile project",
+                "category": "vscode-eemblang",
+                "icon": {
+                    "dark": "res/dark/build-icon.svg",
+                    "light": "res/light/build-icon.svg"
+                }
+            },
+            {
+                "command": "vscode-eemblang.runSimulator",
+                "title": "Run Simulator",
+                "category": "vscode-eemblang",
+                "icon": "$(vm-running)"
+            },
+            {
+                "command": "vscode-eemblang.flash",
+                "title": "Flash to device",
+                "category": "vscode-eemblang",
+                "icon": "$(symbol-event)"
+            },
+            {
+                "command": "vscode-eemblang.flushDbg",
+                "title": "Flash to device and start Debug",
+                "category": "vscode-eemblang",
+                "icon": "$(debug-alt)"
+            },
+            {
+                "command": "vscode-eemblang.attach",
+                "title": "Attach to device",
+                "category": "vscode-eemblang",
+                "icon": "$(debug)"
+            },
+            {
+                "command": "vscode-eemblang.flush",
+                "title": "Flash to device",
+                "category": "vscode-eemblang",
+                "icon": "$(symbol-event)"
+            },
+            {
+                "command": "vscode-eemblang.settings",
+                "title": "Project settings",
+                "category": "vscode-eemblang",
+                "icon": "$(settings)"
+            }
+        ],
+        "configuration": [
+            {
+                "title": "EEmbLang configuration",
+                "properties": {
+                    "eemblang.build.inputFile": {
+                        "title": "Source file or path",
+                        "type": "string",
+                        "default": "${workspaceTarget.uri.fsPath}/main.es",
+                        "description": "Path to source file or directory for compilation"
+                    }
+                }
             }
         ],
         "menus": {
-            "commandPalette": []
+            "editor/title": [
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.runSimulator",
+                    "group": "navigation@2"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.compileProject",
+                    "group": "navigation@1"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.flush",
+                    "group": "navigation@3"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.flushDbg",
+                    "group": "navigation@0"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.attach",
+                    "group": "navigation@4"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.flash"
+                },
+                {
+                    "when": "resourceLangId == eemblang",
+                    "command": "vscode-eemblang.settings",
+                    "group": "navigation@5"
+                }
+            ]
         }
+    },
+    "dependencies": {
+        "fs-extra": "^11.1.0",
+        "unzip-stream": "^0.3.1",
+        "vsce": "^2.15.0"
     }
 }

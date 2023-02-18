@@ -9,21 +9,25 @@ import * as toolchain from './toolchain';
 import * as cp from "child_process";
 
 import { Config,  substituteVSCodeVariables } from "./config";
-import { activateTaskProvider } from "./tasks";
+import { activateTaskProvider, createTask } from "./tasks";
 import { isEasyDocument, execute } from "./util";
 
 import * as readline from "readline";
 
 import {EasyConfigurationProvider} from "./dbg";
 
+import * as os from "os";
+
 import {TableEditorProvider } from './ModbusEditor/tableEditor';
 
 
 import { URL } from 'url';
 
+//import { resolve } from 'path';
 
-async function downloadFile0(url: string | URL | https.RequestOptions, targetFile: fs.PathLike) {  
-  return await new Promise((resolve, reject) => {
+
+async function downloadFile0(url: string | URL | https.RequestOptions, targetFile: fs.PathLike, callback: () => void) {  
+  return new Promise((resolve, reject) => {
 
 
     https.get(url, response => {
@@ -38,7 +42,7 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 
       // handle redirects
       if (code > 300 && code < 400 && !!response.headers.location) {
-        return downloadFile0(response.headers.location, targetFile)
+        return downloadFile0(response.headers.location, targetFile, callback)
       }
 
       // save the file to disk
@@ -46,6 +50,7 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
         .createWriteStream(targetFile)
         .on('finish', () => {
           console.log("done");
+          callback();
           resolve({});
         })
 
@@ -55,6 +60,35 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
       reject(error)
     })
   })
+}
+
+
+async function chechToolchain() {  
+
+  let path = await toolchain.easyPath();
+  console.log(path);
+
+  let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const standardTmpPath = vscode.Uri.joinPath(
+    vscode.Uri.file(homeDir),
+    ".eec.zip");
+
+    const standardPath = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir));
+    console.log(standardTmpPath);
+
+  if (path == "notFound") {
+    let result = await downloadFile0("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/.eec.zip", standardTmpPath.fsPath, () => {
+      console.log("done2");
+      var unzip = require('unzip-stream');
+      var fs = require('fs-extra'); 
+
+      fs.createReadStream(standardTmpPath.fsPath).pipe(unzip.Extract({ path: standardPath.fsPath }));
+    });
+      
+    
+  }
+
 }
 
 
@@ -213,10 +247,13 @@ async function checkDepencies() {
  
 }
 
+
+
+
 export function activate(context: vscode.ExtensionContext) {
 
 
-  console.log("Hello, World!");
+  //console.log("Hello, World!");
 
   let extation = vscode.extensions.getExtension("YouTooLife.vscode-eemblang");
   
@@ -224,10 +261,35 @@ export function activate(context: vscode.ExtensionContext) {
   
   let config = new Config(context);
 
+  chechToolchain();
+ 
+
+
 
   vscode.debug.onDidStartDebugSession((e) => {
     console.log(e);
     //checkDepencies();
+  });
+
+  
+  vscode.tasks.onDidEndTaskProcess(async (e) => {
+
+    console.log(e.execution.task.name);
+    const tsk: tasks.EasyTaskDefinition = (e.execution.task.definition as tasks.EasyTaskDefinition);
+
+    if (tsk as tasks.EasyTaskDefinition)
+    {
+      if (tsk.command == "build" && e.exitCode == 0)
+      {
+        const task = await createTask(2, config);
+        const exec = await vscode.tasks.executeTask(task);
+      }
+      else if (tsk.command == "link" && e.exitCode == 0) {
+        const task = await createTask(3, config);
+        const exec = await vscode.tasks.executeTask(task);
+      }
+    }
+
   });
 
   context.subscriptions.push(activateTaskProvider(config));
@@ -238,6 +300,46 @@ export function activate(context: vscode.ExtensionContext) {
       value: 'source.es'
     });
   }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', async config => {
+    const task = await createTask(0, config);
+    const exec = await vscode.tasks.executeTask(task);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.runSimulator', async config =>  {
+    const task = await createTask(1, config);
+    const exec = await vscode.tasks.executeTask(task);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flash', config => {
+    return vscode.window.showInformationMessage("Flash", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flush', async config => {
+    const task = await createTask(4, config);
+    const exec = await vscode.tasks.executeTask(task);
+    //return vscode.window.showInformationMessage("Flush", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.attach', config => {
+    return vscode.window.showInformationMessage("Attach", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flushDbg', config => {
+    return vscode.window.showInformationMessage("flushDbg", "Ok");
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.settings', config => {
+    return vscode.window.showInformationMessage("settings", "Ok");
+  }));
+
+  let myStatusBarItem: vscode.StatusBarItem;
+  myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+	myStatusBarItem.command = 'vscode-eemblang.runSimulator';
+	context.subscriptions.push(myStatusBarItem);
+  myStatusBarItem.text = `$(run)`;
+  myStatusBarItem.tooltip = "Run Simulator";
+	myStatusBarItem.show();
 
 
   const provider = new EasyConfigurationProvider();

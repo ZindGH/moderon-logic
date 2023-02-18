@@ -35,11 +35,9 @@ export function safeLength<T>(arr: T[] | undefined) {
     return arr ? arr.length : 0;
 }
 
-export function buildPromiseChain<T, TResult>(array: T[], builder: (item: T) => Promise<TResult>): Promise<TResult> {
-    return array.reduce(
-        (promise, n) => promise.then(() => builder(n)),
-        Promise.resolve<TResult>(null as any));
-}
+// export function buildPromiseChain<T, TResult>(array: T[], builder: (item: T) => Promise<TResult>): Promise<TResult> {
+//     return ; // array.reduce((promise, n) => promise.then(() => builder(n)),Promise.resolve<TResult>(null as any));
+// }
 
 export function execChildProcess(command: string, workingDirectory: string = getExtensionPath()): Promise<string> {
     return new Promise<string>((resolve, reject) => {

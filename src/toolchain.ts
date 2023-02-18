@@ -153,10 +153,14 @@ export function ebuildPath(): Promise<string> {
     return getPathForExecutable("ebuild");
 }
 
+export function flasherPath(): Promise<string> {
+    return getPathForExecutable("eflash");
+}
+
 /** Mirrors `toolchain::get_path_for_executable()` implementation */
 export const getPathForExecutable = memoizeAsync(
     // We apply caching to decrease file-system interactions
-    async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild"): Promise<string> => {
+    async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild"| "eflash"): Promise<string> => {
         {
             const envVar = process.env[executableName.toUpperCase()];
             if (envVar) return envVar;
@@ -183,7 +187,7 @@ export const getPathForExecutable = memoizeAsync(
         } catch (err) {
             log.error("Failed to read the fs info", err);
         }
-        return executableName;
+        return "notFound";
     }
 );
 
