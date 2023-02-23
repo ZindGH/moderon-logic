@@ -267,7 +267,7 @@ import { rejects } from 'assert';
       //resolve(true);
     });}
 
-    const result0 = download("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/.eec.zip", standardTmpPath.fsPath);
+    const result0 = download("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/.eec.zip", standardTmpPath.fsPath);
 
     token.onCancellationRequested(() => {
       console.log("User canceled the long running operation");
@@ -333,6 +333,9 @@ export async function checkToolchain(): Promise<boolean> {
     let choice = await vscode.window.showWarningMessage(`EEmbLang Toolchain is not installed!\nDo you want Download and Install now?`, ...buttons);
     if (choice === buttons[0]) {
       let res = await installToolchain();
+      if (!res) {
+        vscode.window.showErrorMessage(`Error: EEmbLang Toolchain is not installed!\nCan't download file`);
+      }
       return res;
     }
     return false;
@@ -346,7 +349,15 @@ export async function checkToolchain(): Promise<boolean> {
     return "ver" in o 
   }
   
-  const response = await fetch("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/toolchain.json");
+  const response = await fetch("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/toolchain.json").catch((e)=>{
+    console.log(e);
+    return undefined;
+  });
+
+  if (response === undefined) {
+    return true;
+  }
+
   const data = await response.json();
   // const parsed = JSON.parse(json)
   if (isCfgType(data)) {

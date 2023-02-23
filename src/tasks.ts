@@ -162,8 +162,8 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
         { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         { command: "link", name: "linker", args: [
             "${cwd}\\out\\output.o",
-            `${libPath}bin/dl7M_tln.a`,
-            `${libPath}bin/m7M_tl.a`,
+            `${libPath}targets/v7-m/dl7M_tln.a`,
+            `${libPath}targets/v7-m/m7M_tl.a`,
             // `${libPath}targets/v7-m/nofp/libc.a`,
             // `${libPath}targets/v7-m/nofp/libg.a`,
             // `${libPath}targets/v7-m/nofp/libm.a`,
