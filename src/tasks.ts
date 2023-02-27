@@ -162,8 +162,35 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
         { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         { command: "link", name: "linker", args: [
             "${cwd}\\out\\output.o",
-            `${libPath}targets/v7-m/dl7M_tln.a`,
-            `${libPath}targets/v7-m/m7M_tl.a`,
+            // `${libPath}targets/v7-m/dl7M_tln.a`,
+            // `${libPath}targets/v7-m/m7M_tl.a`,
+            // `${libPath}targets/v7-m/shb_l.a`,
+            //`${libPath}targets/v7-m/rt7M_tl.a`,
+            //"--sysroot=C:\\Users\\79117\\Desktop\\arm-gnu-toolchain-12.2.rel1-mingw-w64-i686-arm-none-eabi\\lib\\gcc\\arm-none-eabi\\12.2.1",
+            
+            `--sysroot=${libPath}lib/std/picolib`,
+            `-L${libPath}lib/std/picolib/lib`,
+            //`-L${libPath}targets/rt/lib2`,
+            
+            //"-IC:\\Users\\79117\\Desktop\\arm-gnu-toolchain-12.2.rel1-mingw-w64-i686-arm-none-eabi\\arm-none-eabi\\include",
+            //"-IC:\\Users\\79117\\Desktop\\arm-gnu-toolchain-12.2.rel1-mingw-w64-i686-arm-none-eabi\\lib\\gcc\\arm-none-eabi\\12.2.1\\include",
+            //"-LC:\\Users\\79117\\Desktop\\arm-gnu-toolchain-12.2.rel1-mingw-w64-i686-arm-none-eabi\\arm-none-eabi\\lib\\thumb\\v7-m\\nofp",
+            //"-LC:\\Users\\79117\\Desktop\\arm-gnu-toolchain-12.2.rel1-mingw-w64-i686-arm-none-eabi\\lib\\gcc\\arm-none-eabi\\12.2.1\\thumb\\v7-m\\nofp",
+            //"-lsemihost",
+            "-lc",
+            "-lm",
+            //"-oslib",
+            //"-lgcc",
+            //"-lc_nano",
+            //"-lnosys",
+            //"-lg_nano",
+            //"-lg",
+            "-lclang_rt.builtins-armv7m",
+            //"-lunwind",
+           // "-lrdimon_nano",
+
+            //"-mfloat-abi=soft",
+            //"-march=thumbv7m+nofp",
             // `${libPath}targets/v7-m/nofp/libc.a`,
             // `${libPath}targets/v7-m/nofp/libg.a`,
             // `${libPath}targets/v7-m/nofp/libm.a`,
@@ -178,7 +205,8 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
             ldPath,
             "-o",
             "${cwd}\\out\\output.elf",
-            "-nostdlib" ]
+            "-nostdlib"
+        ]
         , group: undefined/*, dependsOn: "eemblang: Build for Device"*/ },
         { command: "ebuild", name: "buildAELF", args: [
             "-f", "${cwd}\\out\\output.elf",
