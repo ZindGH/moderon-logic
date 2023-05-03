@@ -183,6 +183,8 @@ async function checkDepencies() {
      } 
    }
 
+   
+
 
 //    const definition: tasks.EasyTaskDefinition = {
 //     type: tasks.TASK_TYPE,

@@ -251,6 +251,18 @@ export async function buildEasyTask(
 ): Promise<vscode.Task> {
     let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
 
+    //if ( task.group === vscode.TaskGroup.Build ) {
+    if ( definition.command == "build" ) {
+        for (const file of vscode.workspace.textDocuments) {
+            if (file.isDirty) {
+                console.log("changes: ", file.fileName, file.version);
+                file.save();
+            } else {
+                console.log("no changes: ", file.fileName, file.version);
+            }
+        }
+    }
+
 console.log( "command: ", definition.command );
 
     if ( definition.command == "link"  || definition.command == "ebuild" || definition.command == "flaher" )
