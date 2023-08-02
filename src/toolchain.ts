@@ -165,6 +165,7 @@ export function flasherPath(): Promise<string> {
 import fetch from 'node-fetch';
 import { ClientRequest } from 'http';
 import { rejects } from 'assert';
+import { normalize } from "path";
 
 
 
@@ -308,6 +309,135 @@ import { rejects } from 'assert';
     return result;
 }
 
+type TargetPeriphInfo = {
+  aoCount: number;
+  relayCount: number;
+  uartCount: number;
+  uiCount: number;
+}
+
+export type TargetInfo = {
+  description: string;
+  devManId: number;
+  devName: string;
+  frameWorkVerA: number; 
+  frameWorkVerB: number; 
+  triplet: string;
+  pathToFile: string;
+  stdlib: string;
+  runtime: string;
+  periphInfo: TargetPeriphInfo;
+}
+
+
+export async function getTargets() : Promise<TargetInfo[]> {
+
+  let targetsInfo: Array<TargetInfo> = [];
+
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const targetsDir = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir), ".eec", "targets");
+
+  await vscode.workspace.fs.readDirectory(targetsDir).then((files) => {
+    files.forEach(element => {
+      
+      console.log("file: ", element[0]);
+      
+      if ( element[1] !=  vscode.FileType.Directory ) {
+        console.log("is not dir");
+        return;
+      }
+
+      const targetInfoFile =  vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
+      const isExist = isFileAtUri(targetInfoFile);
+
+      if ( !isExist) {
+        return;
+      }
+
+      const raw = fs.readFileSync(targetInfoFile.fsPath).toString();
+      const targetInfo = JSON.parse(raw) as TargetInfo;
+      targetInfo.pathToFile = targetInfoFile.fsPath;
+      targetsInfo.push(targetInfo);
+
+    }); 
+  }, () => {
+    console.log("can't find toolchain dir");
+  });
+
+
+  return targetsInfo;
+}
+
+
+
+export async function getTargetWithDevName(devName: string) : Promise<TargetInfo> {
+
+
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const targetsDir = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir), ".eec", "targets");
+
+  let result: TargetInfo = {
+    description: "IS20C01D test",
+    devManId: 0,
+    devName: "Test device",
+    frameWorkVerA: 0,
+    frameWorkVerB: 22,
+    triplet: "thumbv7m-none-none-eabi",
+    pathToFile: "",
+    periphInfo: {
+      aoCount: 3,
+      relayCount: 6,
+      uartCount: 8,
+      uiCount: 11
+    },
+    stdlib: "armv7m",
+    runtime: "clang_rt.builtins-armv7m"
+  };
+
+  await vscode.workspace.fs.readDirectory(targetsDir).then((files) => {
+    files.forEach(element => {
+      
+      console.log("file: ", element[0]);
+      
+      if ( element[1] !=  vscode.FileType.Directory ) {
+        console.log("is not dir");
+        return;
+      }
+
+      const targetInfoFile =  vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
+      const isExist = isFileAtUri(targetInfoFile);
+
+      if ( !isExist) {
+        return;
+      }
+
+      const raw = fs.readFileSync(targetInfoFile.fsPath).toString();
+      const targetInfo = JSON.parse(raw) as TargetInfo;
+      targetInfo.pathToFile = targetInfoFile.fsPath;
+
+      if (targetInfo.description != devName)
+      {
+        if (result.description == "IS20C01D test") {
+            result = targetInfo;
+        }
+        return;
+      }
+
+      result = targetInfo;
+
+    }); 
+  }, () => {
+    console.log("can't find toolchain dir");
+  });
+
+  return result;
+}
+
+
+
+
 
 
 export async function checkToolchain(): Promise<boolean> {  
@@ -323,7 +453,7 @@ export async function checkToolchain(): Promise<boolean> {
   //     vscode.Uri.file(homeDir));
   //   console.log(standardTmpPath);
 
-    const verFile = vscode.Uri.joinPath(
+  const verFile = vscode.Uri.joinPath(
       vscode.Uri.file(homeDir), ".eec", "toolchain.json");
 
   const toolchainFile = await isFileAtUri(verFile);
@@ -369,7 +499,7 @@ export async function checkToolchain(): Promise<boolean> {
     if (isCfgType(currentVer)) {
       if (currentVer.ver != data.ver) {
         let buttons = ['Install', 'Not now'];
-        let choice = await vscode.window.showInformationMessage(`New EEmbLang Toolchain is available!\nDo you want Download and Install now?`, ...buttons);
+        let choice = await vscode.window.showInformationMessage(`New EEmbLang Toolchain (${data.ver}) is available!\nDo you want Download and Install now?`, ...buttons);
         if (choice === buttons[0]) {
           return await installToolchain();
         }

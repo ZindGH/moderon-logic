@@ -24,6 +24,7 @@ export interface EasyTaskDefinition extends vscode.TaskDefinition {
     env?: { [key: string]: string };
     overrideEasy?: string;
     dependsOn?: string;
+    envCfg: Config;
 }
 
 let isFoundToolchain = false;
@@ -45,8 +46,9 @@ class EasyTaskProvider implements vscode.TaskProvider {
         const pathToLinker  = await toolchain.linkerPath();
         const pathToEbuild  = await toolchain.ebuildPath();
 
+
         const defs = [
-            { command: "build", name: "Build for Device", args: ["-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
+            { command: "build", name: "Build for Device", args: ["-triplet", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
             { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
             { command: "link", name: "linker", args: [
                 "${cwd}\\out\\output.o",
@@ -81,7 +83,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 }
                 const vscodeTask = await buildEasyTask(
                 workspaceTarget,
-                { type: TASK_TYPE, command: def.command, args: args0 },
+                { type: TASK_TYPE, command: def.command, args: args0, envCfg: this.config },
                 def.name,
                 args0,
                 this.config.easyRunner
@@ -148,18 +150,27 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
     }
 
 
-    let ldPath = await toolchain.easyPath();
-    const pIdx = ldPath.lastIndexOf("bin");
-    let libPath = "";
+
+    const targetFile = config.targetDevice.pathToFile;
+
+    let ldPath = targetFile;
+    const pIdx = ldPath.lastIndexOf("targetInfo.json");
     if (pIdx !== -1)
     {
-        libPath = ldPath.substring(0, pIdx-1) + "/";
-        ldPath = ldPath.substring(0, pIdx-1) + "/targets/target_out.ld";
+        ldPath = ldPath.substring(0, pIdx-1) + "/target_out.ld";
     }
 
+    let libPath = await toolchain.easyPath();
+    const pIdx2 = libPath.lastIndexOf("bin");
+    if (pIdx2 !== -1)
+    {
+        libPath = libPath.substring(0, pIdx2-1) + "/lib/" + config.targetDevice.stdlib + "/std/picolib";
+    }
+    const runTimelib = config.targetDevice.runtime.length > 0 ? `-l${config.targetDevice.runtime}` : "";
+
     const defs = [
-        { command: "build", name: "Build for Device", args: ["-target", "thumbv7m-none-none-eabi", "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
-        { command: "simulate", name: "Run Simulator", args: ["-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
+        { command: "build", name: "Build for Device", args: ["-target", `${targetFile}`, "-triplet", config.targetDevice.triplet, "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
+        { command: "simulate", name: "Run Simulator", args: ["-target", `${targetFile}`, "-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         { command: "link", name: "linker", args: [
             "${cwd}\\out\\output.o",
             // `${libPath}targets/v7-m/dl7M_tln.a`,
@@ -168,8 +179,8 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
             //`${libPath}targets/v7-m/rt7M_tl.a`,
             //"--sysroot=C:\\Users\\79117\\Desktop\\arm-gnu-toolchain-12.2.rel1-mingw-w64-i686-arm-none-eabi\\lib\\gcc\\arm-none-eabi\\12.2.1",
             
-            `--sysroot=${libPath}lib/std/picolib`,
-            `-L${libPath}lib/std/picolib/lib`,
+            `--sysroot=${libPath}`,
+            `-L${libPath}/lib`,
             //`-L${libPath}targets/rt/lib2`,
             
             //"-IC:\\Users\\79117\\Desktop\\arm-gnu-toolchain-12.2.rel1-mingw-w64-i686-arm-none-eabi\\arm-none-eabi\\include",
@@ -179,13 +190,13 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
             //"-lsemihost",
             "-lc",
             "-lm",
+            runTimelib,
             //"-oslib",
             //"-lgcc",
             //"-lc_nano",
             //"-lnosys",
             //"-lg_nano",
             //"-lg",
-            "-lclang_rt.builtins-armv7m",
             //"-lunwind",
            // "-lrdimon_nano",
 
@@ -228,7 +239,7 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
 
     const vscodeTask = await buildEasyTask(
         workspaceTarget,
-        { type: TASK_TYPE, command: def.command, args: args0 },
+        { type: TASK_TYPE, command: def.command, args: args0, envCfg: config },
         def.name,
         args0,
         config.easyRunner
@@ -333,7 +344,7 @@ console.log( "command: ", definition.command );
         exec = new vscode.ProcessExecution( fullCommand[0], fullCommand.slice(1), definition );
     }
     }
-    return new vscode.Task(
+    return new vscode.Task( 
         definition,
         // scope can sometimes be undefined. in these situations we default to the workspace taskscope as
         // recommended by the official docs: https://code.visualstudio.com/api/extension-guides/task-provider#task-provider)

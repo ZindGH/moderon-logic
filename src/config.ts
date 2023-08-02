@@ -3,6 +3,8 @@ import * as os from "os";
 import * as vscode from "vscode";
 //import { Env } from "./client";
 import { log } from "./util";
+import { TargetInfo } from "./toolchain";
+
 
 export type RunnableEnvCfg =
     | undefined
@@ -12,6 +14,24 @@ export type RunnableEnvCfg =
 export class Config {
     readonly extensionId = "YouTooLife.vscode-eemblang";
     configureLang: vscode.Disposable | undefined;
+
+    targetDevice: TargetInfo = {
+        description: "IS20C01D test",
+        devManId: 0,
+        devName: "Test device",
+        frameWorkVerA: 0,
+        frameWorkVerB: 22,
+        triplet: "thumbv7m-none-none-eabi",
+        pathToFile: "",
+        periphInfo: {
+          aoCount: 3,
+          relayCount: 6,
+          uartCount: 8,
+          uiCount: 11
+        },
+        stdlib: "armv7m",
+        runtime: "clang_rt.builtins-armv7m"
+      };
 
     readonly rootSection = "eemblang";
     private readonly requiresReloadOpts = [
@@ -143,8 +163,9 @@ export class Config {
     // We don't do runtime config validation here for simplicity. More on stackoverflow:
     // https://stackoverflow.com/questions/60135780/what-is-the-best-way-to-type-check-the-configuration-for-vscode-extension
 
-    private get cfg(): vscode.WorkspaceConfiguration {
-        return vscode.workspace.getConfiguration(this.rootSection);
+    public get cfg(): vscode.WorkspaceConfiguration {
+        const _cfg = vscode.workspace.getConfiguration(this.rootSection);
+        return _cfg;
     }
 
     /**
@@ -163,8 +184,12 @@ export class Config {
      * ```
      * So this getter handles this quirk by not requiring the caller to use postfix `!`
      */
-    private get<T>(path: string): T {
+    public get<T>(path: string): T {
         return this.cfg.get<T>(path)!;
+    }
+
+    public set(path: string, value: any) {
+        this.cfg.update(path, value, vscode.ConfigurationTarget.Workspace);
     }
 
     get serverPath() {

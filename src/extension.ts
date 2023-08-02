@@ -373,21 +373,26 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
   context.subscriptions.push(activateTaskProvider(config));
 
-  context.subscriptions.push(vscode.commands.registerCommand('extension.vscode-eemblang.getProgramName', config => {
+  context.subscriptions.push(vscode.commands.registerCommand('extension.vscode-eemblang.getProgramName', () => {
     return vscode.window.showInputBox({
       placeHolder: 'Please enter the name of a source file in the workspace folder',
       value: 'source.es'
     });
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', async config => {
-    const task = 
-    await createTask(0, config);
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', async () => {
+    const task = await createTask(0, config).catch(() => {});
+    if (!task) {
+      return;
+    }
     const exec = await vscode.tasks.executeTask(task);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.runSimulator', async config =>  {
-    const task = await createTask(1, config);
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.runSimulator', async () =>  {
+    const task = await createTask(1, config).catch(() => {});
+    if (!task) {
+      return;
+    }
     const exec = await vscode.tasks.executeTask(task);
   }));
 
@@ -395,31 +400,169 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
     return vscode.window.showInformationMessage("Flash", "Ok");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flush', async config => {
-    const task = await createTask(4, config);
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flush', async () => {
+    const task = await createTask(4, config).catch(() => {});
+    if (!task) {
+      return;
+    }
     const exec = await vscode.tasks.executeTask(task);
     //return vscode.window.showInformationMessage("Flush", "Ok");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.attach', config => {
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.attach', () => {
     return vscode.window.showInformationMessage("Attach", "Ok");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flushDbg', config => {
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flushDbg', () => {
     return vscode.window.showInformationMessage("flushDbg", "Ok");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.settings', config => {
+  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.settings', () => {
     return vscode.window.showInformationMessage("settings", "Ok");
   }));
 
-  let myStatusBarItem: vscode.StatusBarItem;
-  myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	myStatusBarItem.command = 'vscode-eemblang.runSimulator';
-	context.subscriptions.push(myStatusBarItem);
-  myStatusBarItem.text = `$(run)`;
-  myStatusBarItem.tooltip = "Run Simulator";
-	myStatusBarItem.show();
+
+
+
+    
+
+		// 1) Getting the value
+		// const value = await vscode.window.showInputBox({ prompt: 'Provide glob pattern of files to have empty last line.' });
+
+		// if (vscode.workspace.workspaceFolders) {
+
+		// 	// 2) Getting the target
+		// 	const target = await vscode.window.showQuickPick(
+		// 		[
+		// 			{ label: 'Application', description: 'User Settings', target: vscode.ConfigurationTarget.Global },
+		// 			{ label: 'Workspace', description: 'Workspace Settings', target: vscode.ConfigurationTarget.Workspace },
+		// 			{ label: 'Workspace Folder', description: 'Workspace Folder Settings', target: vscode.ConfigurationTarget.WorkspaceFolder }
+		// 		],
+		// 		{ placeHolder: 'Select the target to which this setting should be applied' });
+
+		// 	if (value && target) {
+
+		// 		if (target.target === vscode.ConfigurationTarget.WorkspaceFolder) {
+
+		// 			// 3) Getting the workspace folder
+		// 			const workspaceFolder = await vscode.window.showWorkspaceFolderPick({ placeHolder: 'Pick Workspace Folder to which this setting should be applied' });
+		// 			if (workspaceFolder) {
+
+		// 				// 4) Get the configuration for the workspace folder
+		// 				const configuration = vscode.workspace.getConfiguration('', workspaceFolder.uri);
+
+		// 				// 5) Get the current value
+		// 				const currentValue = configuration.get<{}>('conf.resource.insertEmptyLastLine');
+
+		// 				const newValue = { ...currentValue, ...{ [value]: true } };
+
+		// 				// 6) Update the configuration value
+		// 				await configuration.update('conf.resource.insertEmptyLastLine', newValue, target.target);
+		// 			}
+		// 		} else {
+
+		// 			// 3) Get the configuration
+		// 			const configuration = vscode.workspace.getConfiguration();
+
+		// 			// 4) Get the current value
+		// 			const currentValue = configuration.get<{}>('conf.resource.insertEmptyLastLine');
+
+		// 			const newValue = { ...currentValue, ...(value ? { [value]: true } : {}) };
+
+		// 			// 3) Update the value in the target
+		// 			await vscode.workspace.getConfiguration().update('conf.resource.insertEmptyLastLine', newValue, target.target);
+		// 		}
+		// 	}
+		// } else {
+
+		// 	// 2) Get the configuration
+		// 	const configuration = vscode.workspace.getConfiguration();
+
+		// 	// 3) Get the current value
+		// 	const currentValue = configuration.get<{}>('conf.resource.insertEmptyLastLine');
+
+		// 	const newValue = { ...currentValue, ...(value ? { [value]: true } : {}) };
+
+		// 	// 4) Update the value in the User Settings
+		// 	await vscode.workspace.getConfiguration().update('conf.resource.insertEmptyLastLine', newValue, vscode.ConfigurationTarget.Global);
+		// }
+	// });
+
+  const devName = config.get<string>('target.device');
+
+  let sbSelectTargetDev: vscode.StatusBarItem;
+  sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+	sbSelectTargetDev.command = 'vscode-eemblang.command.setTargetDevice';
+	context.subscriptions.push(sbSelectTargetDev);
+  sbSelectTargetDev.text = devName;
+  sbSelectTargetDev.tooltip = "Select target Device";
+	sbSelectTargetDev.show();
+
+  (async () => {
+    const targetDev = await toolchain.getTargetWithDevName(devName);
+    sbSelectTargetDev.text = targetDev.description;
+    config.targetDevice = targetDev;
+  })();
+
+  vscode.commands.registerCommand('vscode-eemblang.command.setTargetDevice', async () => {
+
+
+    let pickTargets: any[] = [];
+
+    const prevDev = config.get<string>('target.device');
+
+    const targets = await toolchain.getTargets();
+
+    targets.forEach(element => {
+      const isPicked = (prevDev == element.description);
+      const pickItem = isPicked ? '$(check)' : ' ';
+      const detail = ` ${pickItem}  $(device-mobile) [${element.periphInfo.uiCount} UIs, ${element.periphInfo.relayCount} Relays, ${element.periphInfo.aoCount} AOs, ${element.periphInfo.uartCount} COMs]   $(extensions) framework v${element.frameWorkVerA}.${element.frameWorkVerB}`;
+      pickTargets.push( {label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: element.description } );
+    });
+
+    const target = await vscode.window.showQuickPick(
+        pickTargets,
+          // [
+          //   { label: 'M72001', description: 'M72001 basic', devName: 'M72IS20C01D', target: vscode.ConfigurationTarget.Workspace },
+          //   { label: 'M72002', description: 'M72002 medium', devName: 'M72IS20C02D', target: vscode.ConfigurationTarget.Workspace },
+          //   { label: 'M72003', description: 'M72003 perfomance', devName: 'M72IS20C03D', target: vscode.ConfigurationTarget.Workspace }
+          // ],
+          { placeHolder: 'Select the target device', title: "Target Device" }
+    );
+
+    if (target) {
+      config.set("target.device", target.description);
+    }
+
+});
+
+
+
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async e => {
+
+		if (e.affectsConfiguration('eemblang.target.device')) {
+      const devName = config.get<string>('target.device');
+      sbSelectTargetDev.text = devName;
+      config.targetDevice = await toolchain.getTargetWithDevName(devName);
+		}
+
+    if (e.affectsConfiguration('eemblang.target.ver')) {
+      const devName = config.get<string>('target.ver');
+      sbSelectTargetDev.text = devName;
+		}
+
+	}));
+
+  // let myStatusBarItem: vscode.StatusBarItem;
+  // myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+	// myStatusBarItem.command = 'vscode-eemblang.runSimulator';
+	// context.subscriptions.push(myStatusBarItem);
+  // myStatusBarItem.text = `$(run)`;
+  // myStatusBarItem.tooltip = "Run Simulator";
+	// myStatusBarItem.show();
+
+
+
 
 
   const provider = new EasyConfigurationProvider();

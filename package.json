@@ -340,12 +340,24 @@
                 "title": "Project settings",
                 "category": "vscode-eemblang",
                 "icon": "$(settings)"
+            },
+            {
+                "command": "vscode-eemblang.command.setTargetDevice",
+                "title": "Set target device",
+                "category": "vscode-eemblang",
+                "icon": "$(settings)"
             }
         ],
         "configuration": [
             {
-                "title": "EEmbLang configuration",
+                "title": "EEmbLang",
                 "properties": {
+                    "eemblang.target.device": {
+                        "title": "Device",
+                        "type": "string",
+                        "default": "M72C01D",
+                        "markdownDescription": "Target device"
+                    },
                     "eemblang.build.inputFile": {
                         "title": "Source file or path",
                         "type": "string",
