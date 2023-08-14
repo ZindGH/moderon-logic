@@ -346,6 +346,12 @@
                 "title": "Set target device",
                 "category": "vscode-eemblang",
                 "icon": "$(settings)"
+            },
+            {
+                "command": "vscode-eemblang.command.setToolchain",
+                "title": "Set Toolchain",
+                "category": "vscode-eemblang",
+                "icon": "$(settings)"
             }
         ],
         "configuration": [
@@ -357,6 +363,12 @@
                         "type": "string",
                         "default": "M72C01D",
                         "markdownDescription": "Target device"
+                    },
+                    "eemblang.toolchain.version": {
+                        "title": "Version",
+                        "type": "string",
+                        "default": "No toolchain",
+                        "markdownDescription": "Current toolchain"
                     },
                     "eemblang.build.inputFile": {
                         "title": "Source file or path",

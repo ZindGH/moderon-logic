@@ -8,6 +8,11 @@ import { execute, log, memoizeAsync } from "./util";
 import * as fs from 'fs';
 import * as https from 'https';
 
+
+import fetch from 'node-fetch';
+import { ClientRequest } from 'http';
+
+
 interface CompilationArtifact {
     fileName: string;
     name: string;
@@ -162,23 +167,67 @@ export function flasherPath(): Promise<string> {
 
 
 
-import fetch from 'node-fetch';
-import { ClientRequest } from 'http';
-import { rejects } from 'assert';
-import { normalize } from "path";
+
+export type ToolchainInfo = {
+  label: string;
+  file: string;
+  description: string;
+  ver: string;
+  url: string;
+}
+
+export type ToolchainsFile = {
+  toolchains: ToolchainInfo[];
+}
 
 
+ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<boolean> {
 
- async function installToolchain(): Promise<boolean> {
   
   let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-  const standardTmpPath = vscode.Uri.joinPath(
+  
+  const tmpDir = vscode.Uri.joinPath(
     vscode.Uri.file(homeDir),
-    ".eec.zip");
+    ".eec-tmp"
+  );
 
-    const standardPath = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir));
-    console.log(standardTmpPath);
+  const tmpFilePath = vscode.Uri.joinPath(
+    vscode.Uri.file(homeDir),
+    ".eec-tmp", `${toolchainInfo.file}.zip`
+  );
+
+  // const tmpUnzipDirPath = vscode.Uri.joinPath(
+  //   vscode.Uri.file(homeDir),
+  //   ".eec-tmp", `${toolchainInfo.file}`
+  // );
+
+  // const toolchainFilePath = vscode.Uri.joinPath(
+  //   vscode.Uri.file(homeDir),
+  //   ".eec-tmp", `${toolchainInfo.file}`, ".eec.zip"
+  // );
+
+  // const toolchainDirPath = vscode.Uri.joinPath(
+  //   vscode.Uri.file(homeDir),
+  //   ".eec"
+  // );
+
+  const toolchainDirPath = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir)
+    );
+
+  if ( ! ( await isDirAtUri(tmpDir) ) )
+  {
+    vscode.workspace.fs.createDirectory(tmpDir).then(()=>{},  () => {
+      console.log('Create dir error!');
+    });
+  }
+    //".eec.zip");
+
+    // const standardPath = vscode.Uri.joinPath(
+    //   vscode.Uri.file(homeDir));
+
+
+  const isExist = ( ( await isFileAtUri(tmpFilePath) ) ) ;
 
   let result = false;
 
@@ -199,10 +248,13 @@ import { normalize } from "path";
 
     let isTerminated = false;
 
-    async function download(url: string | URL | https.RequestOptions, targetFile: fs.PathLike): Promise<boolean> {  
-      return new Promise((resolve, reject) => {
 
-          request = https.get(url, response => {
+
+    async function download(url: string | URL /*| https.RequestOptions*/, targetFile: fs.PathLike): Promise<boolean> {  
+      return new Promise((resolve, reject) => {
+          
+        
+          request = https.get(url, /*{ headers: { responseType: 'arraybuffer'} } ,*/ response => {
     
           const code = response.statusCode ?? 0
     
@@ -217,17 +269,70 @@ import { normalize } from "path";
             return;
           }
     
-          totalSize = Number(response.headers['content-length']);
+          totalSize = response.headers['content-length'] ? Number(response.headers['content-length']) : 1;
           console.log(totalSize);
+
+          response.on('data', (chunk) => {
+            const buffer = chunk as Buffer;
+            prevSize = currentSize;
+
+            if (totalSize == 1) {
+              console.log("Compressed size:", buffer.readInt32LE(20));
+              console.log("Uncompressed size:", buffer.readInt32LE(24));
+              console.log("Extra field length:", buffer.readInt16LE(30));
+              totalSize = 2;
+            }
+            //currentSize += 1024*1024;//buffer.byteLength;
+            currentSize += buffer.byteLength;
+          });
+     
+          response.on('error', () => {
+             console.log("err");
+             isTerminated = true;
+             resolve(false);
+         });
+
+        
+    try {
     
-      const fileWriter = fs
-      .createWriteStream(targetFile)
+      const fileWriter = fs.createWriteStream(targetFile)
       .on('finish', () => {
         console.log("done");
-        progress.report({ message: "Installing...", increment: 99 });
-        var unzip = require('unzip-stream');
-        var fs = require('fs-extra'); 
-        fs.createReadStream(standardTmpPath.fsPath).pipe(unzip.Extract({ path: standardPath.fsPath }));
+        progress.report({ message: "Installing...", increment: 0 });
+        let unzip = require('unzip-stream');
+        // let fsExtra = require('fs-extra'); 
+        // fsExtra.createReadStream(tmpFilePath.fsPath).on('error', (err) => {
+        //   console.log(err);
+        //   (async () => {
+        //     let buttons = ['Yes', 'No'];
+        //     let choice = await vscode.window.showErrorMessage(`Invalid toolcahin archive!\nDo you want to delete this file?`, ...buttons);
+        //     if (choice === buttons[0]) {
+        //       fs.rm(tmpFilePath.fsPath, () => {
+        //       });
+        //     }
+        //   })();
+        // }).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
+
+      let fsExtra = require('fs-extra'); 
+      try {
+        fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
+      } catch(err) {
+        console.log();
+        (async () => {
+          let buttons = ['Yes', 'No'];
+          let choice = await vscode.window.showErrorMessage(`Invalid toolcahin archive!\nDo you want to delete this file?`, ...buttons);
+          if (choice === buttons[0]) {
+            fs.rm(tmpFilePath.fsPath, () => {
+            });
+          }
+        })();
+      }
+
+        // fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: tmpUnzipDirPath.fsPath }));
+        // progress.report({ message: "Installing...", increment: 50 });
+        // fsExtra.createReadStream(toolchainFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
+        // progress.report({ message: "Installing...", increment: 100 });
+        //fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
         progress.report({ message: "Installing...", increment: 100 });
         isTerminated = true;
         resolve(true);
@@ -238,29 +343,19 @@ import { normalize } from "path";
         resolve(false);
       });
 
-    response.on('data', (chunk) => {
-       const buffer = chunk as Buffer;
-       prevSize = currentSize;
-       //currentSize += 1024*1024;//buffer.byteLength;
-       currentSize += buffer.byteLength;
-     });
-
-     response.on('error', () => {
-        console.log("err");
-        isTerminated = true;
-        resolve(false);
-    });
-
-
       response.pipe(fileWriter);
+
+    } catch (err) {
+      console.log(err);
+    }
     
     
         }).on('error', error => {
-          console.log("err");
+          console.log(error);
           isTerminated = true;
           resolve(false);
-      }).setTimeout(10000).on('timeout',() => {
-        console.log("err");
+      }).setTimeout(10000).on('timeout', () => {
+        console.log("Request timeout");
         isTerminated = true;
         resolve(false);
       });
@@ -268,7 +363,27 @@ import { normalize } from "path";
       //resolve(true);
     });}
 
-    const result0 = download("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/.eec.zip", standardTmpPath.fsPath);
+    const result0 = !isExist ? download(toolchainInfo.url, tmpFilePath.fsPath) : true;
+
+    if (isExist) {
+      progress.report({ message: "Installing...", increment: 25 });
+      let unzip = require('unzip-stream');
+      let fsExtra = require('fs-extra'); 
+      try {
+        fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
+      } catch(err) {
+        console.log();
+        (async () => {
+          let buttons = ['Yes', 'No'];
+          let choice = await vscode.window.showErrorMessage(`Invalid toolcahin archive!\nDo you want to delete this file?`, ...buttons);
+          if (choice === buttons[0]) {
+            fs.rm(tmpFilePath.fsPath, () => {
+            });
+          }
+        })();
+      }
+      isTerminated = true;
+    }
 
     token.onCancellationRequested(() => {
       console.log("User canceled the long running operation");
@@ -301,9 +416,14 @@ import { normalize } from "path";
     result = await result0;
 
     return;
-    })
+    });
 
     console.log("Alarm");
+
+    if (result == false && !isExist && ( ( await isFileAtUri(tmpFilePath) ) ) ) {
+      fs.rm(tmpFilePath.fsPath, () => {
+      });
+    }
     
 
     return result;
@@ -330,6 +450,7 @@ export type TargetInfo = {
 }
 
 
+
 export async function getTargets() : Promise<TargetInfo[]> {
 
   let targetsInfo: Array<TargetInfo> = [];
@@ -338,29 +459,33 @@ export async function getTargets() : Promise<TargetInfo[]> {
   const targetsDir = vscode.Uri.joinPath(
       vscode.Uri.file(homeDir), ".eec", "targets");
 
-  await vscode.workspace.fs.readDirectory(targetsDir).then((files) => {
-    files.forEach(element => {
-      
+
+
+
+  await vscode.workspace.fs.readDirectory(targetsDir).then( async (files) => {
+
+    for (let element of files ) {
+
       console.log("file: ", element[0]);
       
       if ( element[1] !=  vscode.FileType.Directory ) {
-        console.log("is not dir");
-        return;
+        //console.log("is not dir");
+        continue;
       }
 
       const targetInfoFile =  vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
-      const isExist = isFileAtUri(targetInfoFile);
+      const isExist = await isFileAtUri(targetInfoFile);
 
       if ( !isExist) {
-        return;
+        continue;
       }
 
       const raw = fs.readFileSync(targetInfoFile.fsPath).toString();
       const targetInfo = JSON.parse(raw) as TargetInfo;
       targetInfo.pathToFile = targetInfoFile.fsPath;
       targetsInfo.push(targetInfo);
+    }
 
-    }); 
   }, () => {
     console.log("can't find toolchain dir");
   });
@@ -396,21 +521,21 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
     runtime: "clang_rt.builtins-armv7m"
   };
 
-  await vscode.workspace.fs.readDirectory(targetsDir).then((files) => {
-    files.forEach(element => {
-      
-      console.log("file: ", element[0]);
-      
+  await vscode.workspace.fs.readDirectory(targetsDir).then( async (files) => {
+
+
+    for (const element of files ) {
+
       if ( element[1] !=  vscode.FileType.Directory ) {
-        console.log("is not dir");
-        return;
+        //console.log("is not dir");
+        continue;
       }
 
       const targetInfoFile =  vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
-      const isExist = isFileAtUri(targetInfoFile);
+      const isExist = await isFileAtUri(targetInfoFile);
 
       if ( !isExist) {
-        return;
+        continue;
       }
 
       const raw = fs.readFileSync(targetInfoFile.fsPath).toString();
@@ -422,12 +547,15 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
         if (result.description == "IS20C01D test") {
             result = targetInfo;
         }
-        return;
+        continue;
       }
 
       result = targetInfo;
+    }
 
-    }); 
+    // files.forEach(element => {
+    //   console.log("file: ", element[0]);
+    // }); 
   }, () => {
     console.log("can't find toolchain dir");
   });
@@ -438,6 +566,38 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
 
 
 
+function getVerToInt(str: string) : number {
+  let nums = str.split('.', 3);
+  return (parseInt(nums[0]) << 16) | (parseInt(nums[1]) << 8) << (parseInt(nums[2]));
+}
+
+async function getLastToolchainInfo() : Promise<ToolchainInfo | undefined> {
+
+  let lastToolchain: ToolchainInfo | undefined = undefined;
+
+  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e)=>{
+    console.log(e);
+    return undefined;
+  });
+
+  if (response === undefined) {
+    return undefined;
+  }
+
+  const data = await response.json() as ToolchainsFile;
+  
+  for (var toolchainInfo of data.toolchains) {
+    // if ( lastToolchain == undefined ) {
+    //   lastToolchain = toolchainInfo;
+    //   continue;
+    // }
+    if ( lastToolchain == undefined || getVerToInt(toolchainInfo.ver) >  getVerToInt(lastToolchain.ver) ) {
+      lastToolchain = toolchainInfo;
+    }
+  }
+
+  return lastToolchain;
+}
 
 
 export async function checkToolchain(): Promise<boolean> {  
@@ -462,50 +622,46 @@ export async function checkToolchain(): Promise<boolean> {
     let buttons = ['Install', 'Not now'];
     let choice = await vscode.window.showWarningMessage(`EEmbLang Toolchain is not installed!\nDo you want Download and Install now?`, ...buttons);
     if (choice === buttons[0]) {
-      let res = await installToolchain();
+      const toolchainInfo = await getLastToolchainInfo();
+      let res = toolchainInfo != undefined ? await installToolchain(toolchainInfo) : false;
       if (!res) {
         vscode.window.showErrorMessage(`Error: EEmbLang Toolchain is not installed!\nCan't download file`);
       }
+      await new Promise(f => setTimeout(f, 3000));
+      await vscode.commands.executeCommand('vscode-eemblang.command.setTargetDevice');
       return res;
     }
     return false;
   }
 
-  type CfgType = {
-    ver: string;
-  }
+  // type CfgType = {
+  //   ver: string;
+  // }
   
-  function isCfgType(o: any): o is CfgType {
-    return "ver" in o 
-  }
+  // function isCfgType(o: any): o is CfgType {
+  //   return "ver" in o 
+  // }
   
-  const response = await fetch("https://github.com/Retrograd-Studios/vscode-eemblang/raw/main/toolchain/toolchain.json").catch((e)=>{
-    console.log(e);
-    return undefined;
-  });
-
-  if (response === undefined) {
+  const lastToolchain = await getLastToolchainInfo();
+  if (lastToolchain == undefined)
+  {
     return true;
   }
-
-  const data = await response.json();
   // const parsed = JSON.parse(json)
-  if (isCfgType(data)) {
-    console.log(data.ver);
+  //if (isCfgType(data)) {
+    //console.log(data.ver);
 
     const raw = fs.readFileSync(verFile.fsPath).toString();
     const currentVer = JSON.parse(raw);
 
-    if (isCfgType(currentVer)) {
-      if (currentVer.ver != data.ver) {
+      if (currentVer.ver != lastToolchain.ver) {
         let buttons = ['Install', 'Not now'];
-        let choice = await vscode.window.showInformationMessage(`New EEmbLang Toolchain (${data.ver}) is available!\nDo you want Download and Install now?`, ...buttons);
+        let choice = await vscode.window.showInformationMessage(`New  EEPL Toolchain (v${lastToolchain.ver}) is available!\nDo you want Download and Install now?`, ...buttons);
         if (choice === buttons[0]) {
-          return await installToolchain();
+          return await installToolchain(lastToolchain);
         }
       }
-    }
-  }
+  //}
 
   return true;
 
@@ -577,4 +733,12 @@ export async function isFileAtUri(uri: vscode.Uri): Promise<boolean> {
     } catch {
         return false;
     }
+}
+
+export async function isDirAtUri(uri: vscode.Uri): Promise<boolean> {
+  try {
+      return ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.Directory) !== 0;
+  } catch {
+      return false;
+  }
 }

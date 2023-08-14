@@ -23,6 +23,8 @@ import {TableEditorProvider } from './ModbusEditor/tableEditor';
 
 import { URL } from 'url';
 import { resolve } from 'path';
+import fetch from 'node-fetch';
+import { ToolchainsFile } from './toolchain';
 
 //import { resolve } from 'path';
 
@@ -489,7 +491,6 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 	// });
 
   const devName = config.get<string>('target.device');
-
   let sbSelectTargetDev: vscode.StatusBarItem;
   sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
 	sbSelectTargetDev.command = 'vscode-eemblang.command.setTargetDevice';
@@ -497,6 +498,15 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   sbSelectTargetDev.text = devName;
   sbSelectTargetDev.tooltip = "Select target Device";
 	sbSelectTargetDev.show();
+
+  const toolchainName = config.get<string>('toolchain.version');
+  let sbSelectToolchain: vscode.StatusBarItem;
+  sbSelectToolchain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+	sbSelectToolchain.command = 'vscode-eemblang.command.setToolchain';
+	context.subscriptions.push(sbSelectToolchain);
+  sbSelectToolchain.text = toolchainName;
+  sbSelectToolchain.tooltip = "Select toolchain";
+	sbSelectToolchain.show();
 
   (async () => {
     const targetDev = await toolchain.getTargetWithDevName(devName);
@@ -534,7 +544,97 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
       config.set("target.device", target.description);
     }
 
-});
+  });
+
+  vscode.commands.registerCommand('vscode-eemblang.command.setToolchain', async () => {
+
+
+    let pickTargets: any[] = [];
+
+    const prevVers = config.get<string>('toolchain.version');
+
+    const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e)=>{
+    console.log(e);
+    return undefined;
+  });
+
+  if (response != undefined) {
+
+    const data = await response.json() as ToolchainsFile;
+  
+    for (var toolchainInfo of data.toolchains) {
+
+      const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  
+      const tmpFilePath = vscode.Uri.joinPath(
+        vscode.Uri.file(homeDir),
+        ".eec-tmp", `${toolchainInfo.file}.zip`
+      );
+
+      const isPicked = (prevVers == toolchainInfo.label);
+      const pickItem = isPicked ? '$(check)' : ' ';
+      const isLocal = (await toolchain.isFileAtUri(tmpFilePath));
+      const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
+      const detail = ` ${pickItem}  $(info) [${toolchainInfo.description} v${toolchainInfo.ver}]  ${localItem}`;
+      pickTargets.push( { label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo } );
+    }
+
+  } else {
+
+    const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+
+    const tmpDir = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir),
+      ".eec-tmp"
+    );
+
+    await vscode.workspace.fs.readDirectory(tmpDir).then((files) => {
+      files.forEach(element => {
+        
+        console.log("file: ", element[0]);
+        
+        if ( element[1] !=  vscode.FileType.File ||  element[0].lastIndexOf(".zip") == -1 || element[0].split('.').length < 3) {
+          console.log("is not toolchain");
+          return;
+        }
+
+        const toolchainInfo: toolchain.ToolchainInfo = {
+          label: element[0],
+          file: element[0],
+          description: '',
+          ver: 'unknown',
+          url: ''
+        };
+
+        const isPicked = (prevVers == toolchainInfo.label);
+        const pickItem = isPicked ? '$(check)' : ' ';
+        const isLocal = true;
+        const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
+        const detail = ` ${pickItem}  $(info) [${toolchainInfo.description} v${toolchainInfo.ver}]  ${localItem}`;
+        pickTargets.push( { label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo } );
+      }); 
+    }, () => {
+      console.log("Can't find toolchains");
+    });
+      
+  }
+
+    const target = await vscode.window.showQuickPick(
+        pickTargets,
+          // [
+          //   { label: 'M72001', description: 'M72001 basic', devName: 'M72IS20C01D', target: vscode.ConfigurationTarget.Workspace },
+          //   { label: 'M72002', description: 'M72002 medium', devName: 'M72IS20C02D', target: vscode.ConfigurationTarget.Workspace },
+          //   { label: 'M72003', description: 'M72003 perfomance', devName: 'M72IS20C03D', target: vscode.ConfigurationTarget.Workspace }
+          // ],
+          { placeHolder: 'Select toolchain version', title: "Toolchain" }
+    );
+
+    if (target) {
+      config.set("toolchain.version", target.label);
+      await toolchain.installToolchain(target.toolchain);
+    }
+
+  });
 
 
 
@@ -546,9 +646,9 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
       config.targetDevice = await toolchain.getTargetWithDevName(devName);
 		}
 
-    if (e.affectsConfiguration('eemblang.target.ver')) {
-      const devName = config.get<string>('target.ver');
-      sbSelectTargetDev.text = devName;
+    if (e.affectsConfiguration('eemblang.toolchain.version')) {
+      const toolName = config.get<string>('toolchain.version');
+      sbSelectToolchain.text = toolName;
 		}
 
 	}));
