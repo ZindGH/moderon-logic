@@ -504,7 +504,7 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
       vscode.Uri.file(homeDir), ".eec", "targets");
 
   let result: TargetInfo = {
-    description: "IS20C01D test",
+    description: "Device",
     devManId: 0,
     devName: "Test device",
     frameWorkVerA: 0,

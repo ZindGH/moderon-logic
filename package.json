@@ -2,7 +2,7 @@
     "name": "vscode-eemblang",
     "displayName": "EEmbLang",
     "description": "EEmbLang Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
-    "version": "0.7.0",
+    "version": "0.7.1",
     "icon": "icon.jpg",
     "repository": {
         "url": "https://github.com/YouTooLife/eemblang.git",
@@ -361,13 +361,13 @@
                     "eemblang.target.device": {
                         "title": "Device",
                         "type": "string",
-                        "default": "M72C01D",
+                        "default": "Device",
                         "markdownDescription": "Target device"
                     },
                     "eemblang.toolchain.version": {
                         "title": "Version",
                         "type": "string",
-                        "default": "No toolchain",
+                        "default": "Toolchain",
                         "markdownDescription": "Current toolchain"
                     },
                     "eemblang.build.inputFile": {
