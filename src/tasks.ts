@@ -86,7 +86,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 { type: TASK_TYPE, command: def.command, args: args0, envCfg: this.config },
                 def.name,
                 args0,
-                this.config.easyRunner
+                this.config
                 );
                 vscodeTask.group = def.group;
                 tasks.push( vscodeTask ); 
@@ -121,7 +121,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 definition,
                 task.name,
                 definition.args ?? [],
-                this.config.easyRunner
+                this.config
             );
         }
 
@@ -168,11 +168,14 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
     }
     const runTimelib = config.targetDevice.runtime.length > 0 ? `-l${config.targetDevice.runtime}` : "";
 
+    const devName = config.targetDevice.devName;
+    const cwd = "${cwd}";
+
     const defs = [
         { command: "build", name: "Build for Device", args: ["-target", `${targetFile}`, "-triplet", config.targetDevice.triplet, "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
         { command: "simulate", name: "Run Simulator", args: ["-target", `${targetFile}`, "-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
         { command: "link", name: "linker", args: [
-            "${cwd}\\out\\output.o",
+            `${cwd}/out/${devName}/output.o`,
             // `${libPath}targets/v7-m/dl7M_tln.a`,
             // `${libPath}targets/v7-m/m7M_tl.a`,
             // `${libPath}targets/v7-m/shb_l.a`,
@@ -212,21 +215,21 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
            // `${libPath}bin/rt7M_tl.a`,
             //`${libPath}bin/shb_l.a`,
             "--format=elf",
-            "--Map=${cwd}\\out\\output.map",
+            `--Map=${cwd}/out/${devName}/output.map`,
             ldPath,
             "-o",
-            "${cwd}\\out\\output.elf",
+            `${cwd}/out/${devName}/output.elf`,
             "-nostdlib"
         ]
         , group: undefined/*, dependsOn: "eemblang: Build for Device"*/ },
         { command: "ebuild", name: "buildAELF", args: [
-            "-f", "${cwd}\\out\\output.elf",
-            "-o", "${cwd}\\out\\prog.alf",
-            "-m", "${cwd}\\out\\output.map",
-            "-c", "${cwd}\\out\\output_CFG.bin",
-            "-r", "${cwd}\\out\\output_RES.bin" ]
+            "-f", `${cwd}/out/${devName}/output.elf`,
+            "-o", `${cwd}/out/${devName}/prog.alf`,
+            "-m", `${cwd}/out/${devName}/output.map`,
+            "-c", `${cwd}/out/${devName}/output_CFG.bin`,
+            "-r", `${cwd}/out/${devName}/output_RES.bin` ]
             , group: undefined/*, dependsOn: "eemblang: linker" */},
-        { command: "flaher", name: "EEmbFlasher", args: ["${cwd}\\out\\prog.alf"], group: undefined  }
+        { command: "flaher", name: "EEmbFlasher", args: [`${cwd}/out/${devName}/prog.alf`], group: undefined  }
     ];
 
 
@@ -242,7 +245,7 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
         { type: TASK_TYPE, command: def.command, args: args0, envCfg: config },
         def.name,
         args0,
-        config.easyRunner
+        config
         );
         vscodeTask.group = def.group;
         vscodeTask.presentationOptions.showReuseMessage = false;
@@ -257,8 +260,7 @@ export async function buildEasyTask(
     definition: EasyTaskDefinition,
     name: string,
     args: string[],
-    customRunner?: string,
-    throwOnError: boolean = false
+    config: Config
 ): Promise<vscode.Task> {
     let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
 
@@ -275,6 +277,8 @@ export async function buildEasyTask(
     }
 
 console.log( "command: ", definition.command );
+
+    const devName = definition.command == "simulate" ? "Simulator" : config.targetDevice.devName;
 
     if ( definition.command == "link"  || definition.command == "ebuild" || definition.command == "flaher" )
     {
@@ -318,13 +322,13 @@ console.log( "command: ", definition.command );
                 let stat = (await vscode.workspace.fs.stat(uri));
                 if (stat.type == vscode.FileType.File) {
                     path = posixPath.dirname(uri.path);
-                    path = path.concat("/out/output");
+                    path = path.concat(`/out/${devName}/output`);
                     if (os.type() === "Windows_NT" && path[0] == '/') {
                         path = path.slice(1);
                     }
                 }
                 else {
-                    path = args[0].concat("/out/output");
+                    path = args[0].concat(`/out/${devName}/output`);
                 }
             } catch {
                 vscode.window.showErrorMessage(`Can't compile file '${args[0]}'`);

@@ -568,7 +568,7 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
 
 function getVerToInt(str: string) : number {
   let nums = str.split('.', 3);
-  return (parseInt(nums[0]) << 16) | (parseInt(nums[1]) << 8) << (parseInt(nums[2]));
+  return (parseInt(nums[0]) << 16) | (parseInt(nums[1]) << 8) | (parseInt(nums[2]));
 }
 
 async function getLastToolchainInfo() : Promise<ToolchainInfo | undefined> {
