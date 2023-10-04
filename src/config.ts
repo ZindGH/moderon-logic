@@ -16,9 +16,9 @@ export class Config {
     configureLang: vscode.Disposable | undefined;
 
     targetDevice: TargetInfo = {
-        description: "IS20C01D test",
+        description: "[Device]",
         devManId: 0,
-        devName: "Test device",
+        devName: "Device",
         frameWorkVerA: 0,
         frameWorkVerB: 22,
         triplet: "thumbv7m-none-none-eabi",

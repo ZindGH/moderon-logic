@@ -9,6 +9,8 @@ import * as readline from "readline";
 import * as toolchain from './toolchain';
 
 import * as cp from "child_process";
+import Path = require('path');
+import { Config } from './config';
 
 
 export interface EasyDbgCfg extends DebugConfiguration {
@@ -17,30 +19,73 @@ export interface EasyDbgCfg extends DebugConfiguration {
 }
 
 
-async function checkDepencies() {
-   
-  
-    let extName = "marus25.cortex-debug";
+async function checkDepencies(extName: string): Promise<boolean> {
      //let extName = "vadimcn.vscode-lldb";
     
-     let debugEngine = vscode.extensions.getExtension(extName);
+    const debugEngine = vscode.extensions.getExtension(extName);
    
-     if (!debugEngine) {
-       let buttons = ['Install', 'Not now'];
-       let choice = await vscode.window.showWarningMessage(`Extension '${extName}' is not installed! It is required for debugging.\n Install now?`, ...buttons);
-       if (choice === buttons[0]) {
-        await vscode.commands.executeCommand('workbench.extensions.installExtension', extName).then(() => {
-           vscode.window.showInformationMessage(`Extension '${extName}' has been successfully installed`);
-        }, () => {
+    if (debugEngine) {
+      return true;
+    }
+
+       
+    let buttons = ['Install', 'Not now'];
+    let choice = await vscode.window.showWarningMessage(`Extension '${extName}' is not installed! It is required for debugging.\n Install now?`, ...buttons);
+    
+    if (choice === buttons[0]) {
+
+      let result = false;
+
+      await vscode.commands.executeCommand('workbench.extensions.installExtension', extName).then(() => {
+          result = true;
+          vscode.window.showInformationMessage(`Extension '${extName}' has been successfully installed`);
+        }, 
+        () => {
           vscode.window.showErrorMessage(`Extension '${extName}' has not been installed :(`);
-          return;
-        } );  
-       } else if (choice == buttons[1]) {
-          vscode.window.showErrorMessage(`Extension '${extName}' has not been installed.\n Debugging is unreached :(`);
-          return;
-       } 
-     }
+        });
+        
+      return result;
+
+    } else {
+
+      vscode.window.showErrorMessage(`Extension '${extName}' has not been installed.\n Debugging is unreached :(`);
+      return false;
+
+    } 
+}
+
+
+let isFoundToolchain = false;
+
+export async function runDebug(config: Config) {
+
+
+  if (!isFoundToolchain) {
+    isFoundToolchain = await toolchain.checkToolchain();
+    if (!isFoundToolchain)
+    {
+        vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
+        return new Promise((resolve, reject) => { reject(); });
+    }
+}
+
+if (config.targetDevice.description == "[Device]")
+{
+    await vscode.commands.executeCommand('vscode-eemblang.command.setTargetDevice');
+    if (config.targetDevice.description == "[Device]")
+    {
+        return new Promise((resolve, reject) => { reject(); });
+    }
+}
   
+
+  const extName = "marus25.cortex-debug";
+
+  const isCanDebug = await checkDepencies(extName);
+
+  if (!isCanDebug) {
+    return;
+  }
   
   //    const definition: tasks.EasyTaskDefinition = {
   //     type: tasks.TASK_TYPE,
@@ -74,7 +119,7 @@ async function checkDepencies() {
       return;
     }
   
-    let workspace = vscode.workspace.workspaceFolders![0];
+    const workspace = vscode.workspace.workspaceFolders![0];
   
     //const exec = cp.spawn(path, [], {});
   
@@ -117,30 +162,39 @@ async function checkDepencies() {
     // }, () => {
     //   vscode.window.showErrorMessage("Error");
     // }); //cp.exec(path);
+
+    const pathToArmToolchain = await toolchain.getPathForExecutable("arm-none-eabi-gdb");
+    
+    if (!pathToArmToolchain) {
+      vscode.window.showErrorMessage("Can't find path to 'GNU Arm Embedded Toolchain'");
+      return;
+    }
+
+    const DirPathToArmToolchain = Path.dirname(pathToArmToolchain);
+
+    const devName = config.targetDevice.devName;
+    const cwd = "${cwd}";
+    const targetExe = `${cwd}/out/${devName}/output.elf`;
   
-  
-     debugEngine = vscode.extensions.getExtension(extName);
-  
-     let debugConfig: vscode.DebugConfiguration = {
+     const debugConfig: vscode.DebugConfiguration = {
       type: "cortex-debug",
       request: "attach",
       name: "Debug on PLC",
       cwd: "${workspaceFolder}",
-      svdFile: "./bin/target.svd",
-      executable: "./out/target_out.o",
+      //svdFile: "./bin/target.svd",
+      executable: targetExe,
       runToEntryPoint: "__entryPoint__",
       servertype: "external",
-//      armToolchainPath: "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
       //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
-      armToolchainPath: "D:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin",
-      gdbPath: "D:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2020-q4-major\\bin\\arm-none-eabi-gdb.exe",
-      gdbTarget: "localhost:3333",
+      armToolchainPath: DirPathToArmToolchain,
+      gdbPath: pathToArmToolchain,
+      gdbTarget: "localhost:4242",
       showDevDebugOutput: "raw"
       //preLaunchTask: "st-util"
      };
                  
   
-     vscode.debug.startDebugging(undefined, debugConfig);
+     vscode.debug.startDebugging(workspace, debugConfig);
    
   }
 
@@ -179,7 +233,7 @@ export class EasyConfigurationProvider implements vscode.DebugConfigurationProvi
             debugConfig.preLaunchTask = "eemblang: Run Simulator";
            }
            else {
-            checkDepencies();
+            //checkDepencies();
            }
 
 		// if (!config.type && !config.request && !config.name) {

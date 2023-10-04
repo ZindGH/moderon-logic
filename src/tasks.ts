@@ -27,7 +27,7 @@ export interface EasyTaskDefinition extends vscode.TaskDefinition {
     envCfg: Config;
 }
 
-let isFoundToolchain = false;
+export var isFoundToolchain = false;
 
 class EasyTaskProvider implements vscode.TaskProvider {
     private readonly config: Config;
@@ -149,7 +149,14 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
         break;
     }
 
-
+    if (config.targetDevice.description == "[Device]")
+    {
+        await vscode.commands.executeCommand('vscode-eemblang.command.setTargetDevice');
+        if (config.targetDevice.description == "[Device]")
+        {
+            return new Promise((resolve, reject) => { reject(); });
+        }
+    }
 
     const targetFile = config.targetDevice.pathToFile;
 

@@ -14,7 +14,7 @@ import { isEasyDocument, execute } from "./util";
 
 import * as readline from "readline";
 
-import {EasyConfigurationProvider} from "./dbg";
+import {EasyConfigurationProvider, runDebug} from "./dbg";
 
 import * as os from "os";
 
@@ -304,7 +304,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   //checkToolchain();
   //installToolchain();
-  toolchain.checkToolchain();
+
 
 //   vscode.window.withProgress({
 //     location: vscode.ProgressLocation.Notification,
@@ -412,7 +412,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.attach', () => {
-    return vscode.window.showInformationMessage("Attach", "Ok");
+    runDebug(config);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flushDbg', () => {
@@ -504,15 +504,40 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   sbSelectToolchain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
 	sbSelectToolchain.command = 'vscode-eemblang.command.setToolchain';
 	context.subscriptions.push(sbSelectToolchain);
-  sbSelectToolchain.text = toolchainName;
+  sbSelectToolchain.text = toolchainName + (toolchain.IsNightlyToolchain ? "(Latest version)" : "(Old version)");
   sbSelectToolchain.tooltip = "Select toolchain";
 	sbSelectToolchain.show();
 
+  let sbClearCache: vscode.StatusBarItem;
+  sbClearCache = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+	sbClearCache.command = 'vscode-eemblang.command.clearCache';
+	context.subscriptions.push(sbSelectToolchain);
+  sbClearCache.text = "$(terminal-kill)";
+  sbClearCache.tooltip = "Clear cache";
+	sbClearCache.show();
+
   (async () => {
+    await toolchain.checkToolchain();
     const targetDev = await toolchain.getTargetWithDevName(devName);
     sbSelectTargetDev.text = targetDev.description;
     config.targetDevice = targetDev;
+    sbSelectToolchain.text = config.get<string>('toolchain.version') + (toolchain.IsNightlyToolchain ? " (latest version)" : " (old version)");
   })();
+
+  vscode.commands.registerCommand('vscode-eemblang.command.clearCache', async () => {
+
+    const devName = config.targetDevice.devName;
+
+    const cwd = vscode.workspace.workspaceFolders![0].uri.path;
+    const cachePath = `${cwd}/out/${devName}/.eec_cache`;
+    const cacheSimPath = `${cwd}/out/Simulator/.eec_cache`;
+
+    fs.rm(vscode.Uri.file(cachePath).fsPath, { recursive: true, force: true }, () => {
+    });
+    fs.rm(vscode.Uri.file(cacheSimPath).fsPath, { recursive: true, force: true }, () => {
+    });
+
+  });
 
   vscode.commands.registerCommand('vscode-eemblang.command.setTargetDevice', async () => {
 
@@ -553,30 +578,25 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
     const prevVers = config.get<string>('toolchain.version');
 
-    const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e)=>{
-    console.log(e);
-    return undefined;
-  });
+    const toolchains = await toolchain.getToolchains();
 
-  if (response != undefined) {
-
-    const data = await response.json() as ToolchainsFile;
+    if (toolchains != undefined) {    
   
-    for (var toolchainInfo of data.toolchains) {
+      for (var toolchainInfo of toolchains) {
 
-      const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-  
-      const tmpFilePath = vscode.Uri.joinPath(
-        vscode.Uri.file(homeDir),
-        ".eec-tmp", `${toolchainInfo.file}.zip`
-      );
+        const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+    
+        const tmpFilePath = vscode.Uri.joinPath(
+          vscode.Uri.file(homeDir),
+          ".eec-tmp", `${toolchainInfo.file}.zip`
+        );
 
-      const isPicked = (prevVers == toolchainInfo.label);
-      const pickItem = isPicked ? '$(check)' : ' ';
-      const isLocal = (await toolchain.isFileAtUri(tmpFilePath));
-      const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
-      const detail = ` ${pickItem}  $(info) [${toolchainInfo.description} v${toolchainInfo.ver}]  ${localItem}`;
-      pickTargets.push( { label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo } );
+        const isPicked = (prevVers == toolchainInfo.label);
+        const pickItem = isPicked ? '$(check)' : ' ';
+        const isLocal = (await toolchain.isFileAtUri(tmpFilePath));
+        const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
+        const detail = ` ${pickItem}  $(info) [v${toolchainInfo.ver}]  ${localItem}`;
+        pickTargets.push( { label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo } );
     }
 
   } else {
@@ -610,7 +630,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
         const pickItem = isPicked ? '$(check)' : ' ';
         const isLocal = true;
         const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
-        const detail = ` ${pickItem}  $(info) [${toolchainInfo.description} v${toolchainInfo.ver}]  ${localItem}`;
+        const detail = ` ${pickItem}  $(info) [v${toolchainInfo.ver}]  ${localItem}`;
         pickTargets.push( { label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo } );
       }); 
     }, () => {
@@ -630,8 +650,9 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
     );
 
     if (target) {
-      config.set("toolchain.version", target.label);
       await toolchain.installToolchain(target.toolchain);
+      await new Promise(f => setTimeout(f, 3000));
+      config.set("toolchain.version", target.label);
     }
 
   });
@@ -648,7 +669,12 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
     if (e.affectsConfiguration('eemblang.toolchain.version')) {
       const toolName = config.get<string>('toolchain.version');
+
       sbSelectToolchain.text = toolName;
+      if (toolchain.LastToolchain != undefined)
+      {
+        sbSelectToolchain.text += (toolchain.LastToolchain.label == toolName ? " (latest version)" : " (old version)");
+      }
 		}
 
 	}));

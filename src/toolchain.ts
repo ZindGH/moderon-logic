@@ -181,6 +181,10 @@ export type ToolchainsFile = {
 }
 
 
+
+export let LastToolchain: ToolchainInfo | undefined = undefined;
+
+
  export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<boolean> {
 
   
@@ -296,7 +300,7 @@ export type ToolchainsFile = {
     try {
     
       const fileWriter = fs.createWriteStream(targetFile)
-      .on('finish', () => {
+      .on('finish', async () => {
         console.log("done");
         progress.report({ message: "Installing...", increment: 0 });
         let unzip = require('unzip-stream');
@@ -315,6 +319,11 @@ export type ToolchainsFile = {
 
       let fsExtra = require('fs-extra'); 
       try {
+        let buttons = ['Yes', 'No'];
+        let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true } , ...buttons);
+        if (choice === buttons[0]) {
+            fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
+        }
         fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
       } catch(err) {
         console.log();
@@ -370,7 +379,13 @@ export type ToolchainsFile = {
       let unzip = require('unzip-stream');
       let fsExtra = require('fs-extra'); 
       try {
-        fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
+          let buttons = ['Yes', 'No'];
+          let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
+          if (choice === buttons[0]) {
+            fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
+          }
+        
+          fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
       } catch(err) {
         console.log();
         (async () => {
@@ -504,9 +519,9 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
       vscode.Uri.file(homeDir), ".eec", "targets");
 
   let result: TargetInfo = {
-    description: "Device",
+    description: "[Device]",
     devManId: 0,
-    devName: "Test device",
+    devName: "Device",
     frameWorkVerA: 0,
     frameWorkVerB: 22,
     triplet: "thumbv7m-none-none-eabi",
@@ -544,7 +559,7 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
 
       if (targetInfo.description != devName)
       {
-        if (result.description == "IS20C01D test") {
+        if (result.description == "[Device]") {
             result = targetInfo;
         }
         continue;
@@ -596,8 +611,63 @@ async function getLastToolchainInfo() : Promise<ToolchainInfo | undefined> {
     }
   }
 
+  LastToolchain = lastToolchain;
+
   return lastToolchain;
 }
+
+
+export let IsNightlyToolchain = false;
+
+export async function getToolchains() : Promise<ToolchainInfo[] | undefined> {
+
+  let lastToolchain: ToolchainInfo | undefined = undefined;
+
+  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e)=>{
+    console.log(e);
+    return undefined;
+  });
+
+  if (response === undefined) {
+    return undefined;
+  }
+
+  const data = await response.json() as ToolchainsFile;
+  
+  for (var toolchainInfo of data.toolchains) {
+    if ( lastToolchain == undefined || getVerToInt(toolchainInfo.ver) >  getVerToInt(lastToolchain.ver) ) {
+      lastToolchain = toolchainInfo;
+    }
+  }
+
+  LastToolchain = lastToolchain;
+  if ( lastToolchain == undefined )
+  {
+    return undefined;
+  }
+
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const verFile = vscode.Uri.joinPath(
+    vscode.Uri.file(homeDir), ".eec", "toolchain.json");
+
+  const isLocal = (await isFileAtUri(verFile));
+  if (isLocal)
+  {
+    const raw = fs.readFileSync(verFile.fsPath).toString();
+    const currentVer = JSON.parse(raw);
+    IsNightlyToolchain = (currentVer.ver == lastToolchain.ver);
+  }
+  else
+  {
+    IsNightlyToolchain = false;
+  }
+
+  return data.toolchains;
+
+}
+
+
+
 
 
 export async function checkToolchain(): Promise<boolean> {  
@@ -620,12 +690,16 @@ export async function checkToolchain(): Promise<boolean> {
 
   if (!toolchainFile) {
     let buttons = ['Install', 'Not now'];
-    let choice = await vscode.window.showWarningMessage(`EEmbLang Toolchain is not installed!\nDo you want Download and Install now?`, ...buttons);
+    let choice = await vscode.window.showWarningMessage(`EEmbLang Toolchain is not installed!\nDo you want Download and Install now?`, { modal: true }, ...buttons);
     if (choice === buttons[0]) {
       const toolchainInfo = await getLastToolchainInfo();
       let res = toolchainInfo != undefined ? await installToolchain(toolchainInfo) : false;
       if (!res) {
         vscode.window.showErrorMessage(`Error: EEmbLang Toolchain is not installed!\nCan't download file`);
+      }
+      else
+      {
+        IsNightlyToolchain = true;
       }
       await new Promise(f => setTimeout(f, 3000));
       await vscode.commands.executeCommand('vscode-eemblang.command.setTargetDevice');
@@ -655,11 +729,22 @@ export async function checkToolchain(): Promise<boolean> {
     const currentVer = JSON.parse(raw);
 
       if (currentVer.ver != lastToolchain.ver) {
+        IsNightlyToolchain = false;
         let buttons = ['Install', 'Not now'];
         let choice = await vscode.window.showInformationMessage(`New  EEPL Toolchain (v${lastToolchain.ver}) is available!\nDo you want Download and Install now?`, ...buttons);
         if (choice === buttons[0]) {
-          return await installToolchain(lastToolchain);
+          const res = await installToolchain(lastToolchain);
+          if (res)
+          {
+            IsNightlyToolchain = true;
+            vscode.workspace.getConfiguration("eemblang").update('toolchain.version', lastToolchain.label);
+          }
+          return res;
         }
+      }
+      else
+      {
+        IsNightlyToolchain = true;
       }
   //}
 
@@ -674,7 +759,7 @@ export async function checkToolchain(): Promise<boolean> {
 /** Mirrors `toolchain::get_path_for_executable()` implementation */
 export const getPathForExecutable = memoizeAsync(
     // We apply caching to decrease file-system interactions
-    async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild"| "eflash"): Promise<string> => {
+    async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild"| "eflash" | "arm-none-eabi-gdb"): Promise<string> => {
         {
             const envVar = process.env[executableName.toUpperCase()];
             if (envVar) return envVar;
@@ -682,26 +767,36 @@ export const getPathForExecutable = memoizeAsync(
 
         if (await lookupInPath(executableName)) return executableName;
 
+        const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+        const eecPath = vscode.Uri.joinPath(
+          vscode.Uri.file(homeDir),
+          ".eec",
+          "bin",
+          os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
+        );
+        const armToolchainPath = vscode.Uri.joinPath(
+          vscode.Uri.file(homeDir),
+          ".eec",
+          "arm-toolchain",
+          os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
+        );
+
         try {
-            // hmm, `os.homedir()` seems to be infallible
-            // it is not mentioned in docs and cannot be inferred by the type signature...
-
-            let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-
-            const standardPath = vscode.Uri.joinPath(
-                vscode.Uri.file(homeDir),
-                ".eec",
-                "bin",
-                os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
-            );
-
-            console.log ( "standardPath: ", standardPath, standardPath.fsPath );
-
-            if (await isFileAtUri(standardPath)) return standardPath.fsPath;
+            if (await isFileAtUri(eecPath)) return eecPath.fsPath;
         } catch (err) {
-            log.error("Failed to read the fs info", err);
+          log.error("Failed to read the fs info", err);
+          return "notFound";
         }
+
+        try {
+          if (await isFileAtUri(armToolchainPath)) return armToolchainPath.fsPath;
+        } catch (err) {
+          log.error("Failed to read the fs info", err);
+          return "notFound";
+        }
+
         return "notFound";
+        
     }
 );
 
