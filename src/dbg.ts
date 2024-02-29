@@ -188,7 +188,8 @@ if (config.targetDevice.description == "[Device]")
       //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
       armToolchainPath: DirPathToArmToolchain,
       gdbPath: pathToArmToolchain,
-      gdbTarget: "localhost:4242",
+      gdbTarget: "localhost:21833",
+      //gdbTarget: "localhost:4242",
       showDevDebugOutput: "raw"
       //preLaunchTask: "st-util"
      };
