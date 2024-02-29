@@ -294,7 +294,7 @@ async function checkDepencies() {
 export function activate(context: vscode.ExtensionContext) {
 
 
-  //console.log("Hello, World!");
+  console.log("Hello, World!");
 
   let extation = vscode.extensions.getExtension("YouTooLife.vscode-eemblang");
   
