@@ -25,6 +25,9 @@ import { URL } from 'url';
 import { resolve } from 'path';
 import fetch from 'node-fetch';
 import { ToolchainsFile } from './toolchain';
+import { checkPackages } from './packages';
+import { execArgv } from 'process';
+import { createNewProject, selectExamples } from './examples';
 
 //import { resolve } from 'path';
 
@@ -75,60 +78,6 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 }
 
 
-
-//   console.log(response);
-
-// if (!response.ok) { /* Handle */ }
-
-// // If you care about a response:
-// if (response.body !== null) {
-//   // body is ReadableStream<Uint8Array>
-//   // parse as needed, e.g. reading directly, or
-//   const asString = new TextDecoder("utf-8").decode(response.body);
-//   // and further:
-//   const asJSON = JSON.parse(asString);  // implicitly 'any', make sure to verify type on runtime.
-// }
-
-// function request<Request, Response>(
-//   method: 'GET' | 'POST',
-//   url: string,
-//   content?: Request,
-//   callback?: (response: Response) => void,
-//   errorCallback?: (err: any) => void) {
-
-// const request = new XMLHttpRequest();
-// request.open(method, url, true);
-// request.onload = function () {
-//   if (this.status >= 200 && this.status < 400) {
-//       // Success!
-//       const data = JSON.parse(this.response) as Response;
-//       callback && callback(data);
-//   } else {
-//       // We reached our target server, but it returned an error
-//   }
-// };
-
-// request.onerror = function (err) {
-//   // There was a connection error of some sort
-//   errorCallback && errorCallback(err);
-// };
-// if (method === 'POST') {
-//   request.setRequestHeader(
-//       'Content-Type',
-//       'application/x-www-form-urlencoded; charset=UTF-8');
-// }
-// request.send(content);
-// }
-
-// function request2<Request, Response>(
-//   method: 'GET' | 'POST',
-//   url: string,
-//   content?: Request
-// ): Promise<Response> {
-//   return new Promise<Response>((resolve, reject) => {
-//       request(method, url, content, resolve, reject);
-//   });
-// }
 
 
 export type Workspace =
@@ -426,70 +375,6 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
 
-    
-
-		// 1) Getting the value
-		// const value = await vscode.window.showInputBox({ prompt: 'Provide glob pattern of files to have empty last line.' });
-
-		// if (vscode.workspace.workspaceFolders) {
-
-		// 	// 2) Getting the target
-		// 	const target = await vscode.window.showQuickPick(
-		// 		[
-		// 			{ label: 'Application', description: 'User Settings', target: vscode.ConfigurationTarget.Global },
-		// 			{ label: 'Workspace', description: 'Workspace Settings', target: vscode.ConfigurationTarget.Workspace },
-		// 			{ label: 'Workspace Folder', description: 'Workspace Folder Settings', target: vscode.ConfigurationTarget.WorkspaceFolder }
-		// 		],
-		// 		{ placeHolder: 'Select the target to which this setting should be applied' });
-
-		// 	if (value && target) {
-
-		// 		if (target.target === vscode.ConfigurationTarget.WorkspaceFolder) {
-
-		// 			// 3) Getting the workspace folder
-		// 			const workspaceFolder = await vscode.window.showWorkspaceFolderPick({ placeHolder: 'Pick Workspace Folder to which this setting should be applied' });
-		// 			if (workspaceFolder) {
-
-		// 				// 4) Get the configuration for the workspace folder
-		// 				const configuration = vscode.workspace.getConfiguration('', workspaceFolder.uri);
-
-		// 				// 5) Get the current value
-		// 				const currentValue = configuration.get<{}>('conf.resource.insertEmptyLastLine');
-
-		// 				const newValue = { ...currentValue, ...{ [value]: true } };
-
-		// 				// 6) Update the configuration value
-		// 				await configuration.update('conf.resource.insertEmptyLastLine', newValue, target.target);
-		// 			}
-		// 		} else {
-
-		// 			// 3) Get the configuration
-		// 			const configuration = vscode.workspace.getConfiguration();
-
-		// 			// 4) Get the current value
-		// 			const currentValue = configuration.get<{}>('conf.resource.insertEmptyLastLine');
-
-		// 			const newValue = { ...currentValue, ...(value ? { [value]: true } : {}) };
-
-		// 			// 3) Update the value in the target
-		// 			await vscode.workspace.getConfiguration().update('conf.resource.insertEmptyLastLine', newValue, target.target);
-		// 		}
-		// 	}
-		// } else {
-
-		// 	// 2) Get the configuration
-		// 	const configuration = vscode.workspace.getConfiguration();
-
-		// 	// 3) Get the current value
-		// 	const currentValue = configuration.get<{}>('conf.resource.insertEmptyLastLine');
-
-		// 	const newValue = { ...currentValue, ...(value ? { [value]: true } : {}) };
-
-		// 	// 4) Update the value in the User Settings
-		// 	await vscode.workspace.getConfiguration().update('conf.resource.insertEmptyLastLine', newValue, vscode.ConfigurationTarget.Global);
-		// }
-	// });
-
   const devName = config.get<string>('target.device');
   let sbSelectTargetDev: vscode.StatusBarItem;
   sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
@@ -688,7 +573,19 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 	// myStatusBarItem.show();
 
 
+  vscode.commands.registerCommand('vscode-eemblang.command.createNewProject', async () => { 
+      createNewProject();
+  });
 
+  vscode.commands.registerCommand('vscode-eemblang.command.createProjectFromExample', async () => { 
+    selectExamples();
+  });
+
+
+
+  (async () => {
+    checkPackages();
+  })();
 
 
   const provider = new EasyConfigurationProvider();

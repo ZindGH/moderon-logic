@@ -79,7 +79,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 }
                 else
                 {
-                    args0 = [`${workspaceTarget.uri.fsPath}/main.es`].concat(def.args);
+                    args0 = [`${workspaceTarget.uri.fsPath}/PackageInfo.es`].concat(def.args);
                 }
                 const vscodeTask = await buildEasyTask(
                 workspaceTarget,
@@ -245,7 +245,7 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
     const def = defs[idx];
 
 
-    const args0 = (idx == 0 || idx == 1) ? [`${workspaceTarget!.uri.fsPath}/main.es`].concat(def.args) : def.args;
+    const args0 = (idx == 0 || idx == 1) ? [`${workspaceTarget!.uri.fsPath}/PackageInfo.es`].concat(def.args) : def.args;
 
     const vscodeTask = await buildEasyTask(
         workspaceTarget,

@@ -2,7 +2,7 @@
     "name": "vscode-eemblang",
     "displayName": "Moderon Logic",
     "description": "EEmbLang (EEPL) Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
-    "version": "0.7.6",
+    "version": "0.8.0",
     "icon": "icon.png",
     "repository": {
         "url": "https://github.com/YouTooLife/eemblang.git",
@@ -13,6 +13,7 @@
         "vscode": "^1.72.0"
     },
     "keywords": [
+        "eepl",
         "eemblang",
         "vscode-eemblang"
     ],
@@ -27,11 +28,12 @@
     ],
     "activationEvents": [
         "onDebug",
-        "onLanguage:eemblang",
-        "onCommand:extension.vscode-eemblang.getProgramName",
+        "onLanguage:eepl",
         "onCustomEditor:vscode-eemblang.tableEditor",
         "onCommand:vscode-eemblang.modbus.locals.new",
-        "onCommand:extension.vscode-eemblang.compileProject"
+        "onCommand:extension.vscode-eemblang.compileProject",
+        "onCommand:vscode-eemblang.command.createNewProject",
+        "onCommand:vscode-eemblang.command.createProjectFromExample"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -71,8 +73,10 @@
     "contributes": {
         "languages": [
             {
-                "id": "eemblang",
+                "id": "eepl",
                 "aliases": [
+                    "EEPL",
+                    "eepl",
                     "EEmbLang",
                     "eemblang",
                     "EasyEmbLang",
@@ -98,7 +102,7 @@
         ],
         "breakpoints": [
             {
-                "language": "eemblang"
+                "language": "eepl"
             }
         ],
         "debuggers": [
@@ -106,7 +110,7 @@
                 "label": "EEmbDbg",
                 "type": "eembdbg",
                 "languages": [
-                    "eemblang"
+                    "eepl"
                 ],
                 "configurationAttributes": {
                     "launch": {
@@ -277,12 +281,20 @@
         ],
         "grammars": [
             {
-                "language": "eemblang",
+                "language": "eepl",
                 "scopeName": "source.es",
                 "path": "./syntaxes/eemblang.tmLanguage.json"
             }
         ],
         "commands": [
+            {
+                "command": "vscode-eemblang.command.createNewProject",
+                "title": "EEPL: create new project"
+            },
+            {
+                "command": "vscode-eemblang.command.createProjectFromExample",
+                "title": "EEPL: create project from example"
+            },
             {
                 "command": "vscode-eemblang.progress",
                 "title": "example"
@@ -362,7 +374,7 @@
         ],
         "configuration": [
             {
-                "title": "EEmbLang",
+                "title": "EEPL",
                 "properties": {
                     "eemblang.target.device": {
                         "title": "Device",
@@ -388,36 +400,36 @@
         "menus": {
             "editor/title": [
                 {
-                    "when": "resourceLangId == eemblang",
+                    "when": "resourceLangId == eepl",
                     "command": "vscode-eemblang.runSimulator",
                     "group": "navigation@2"
                 },
                 {
-                    "when": "resourceLangId == eemblang",
+                    "when": "resourceLangId == eepl",
                     "command": "vscode-eemblang.compileProject",
                     "group": "navigation@1"
                 },
                 {
-                    "when": "resourceLangId == eemblang",
+                    "when": "resourceLangId == eepl",
                     "command": "vscode-eemblang.flush",
                     "group": "navigation@3"
                 },
                 {
-                    "when": "resourceLangId == eemblang",
+                    "when": "resourceLangId == eepl",
                     "command": "vscode-eemblang.flushDbg",
                     "group": "navigation@0"
                 },
                 {
-                    "when": "resourceLangId == eemblang",
+                    "when": "resourceLangId == eepl",
                     "command": "vscode-eemblang.attach",
                     "group": "navigation@4"
                 },
                 {
-                    "when": "resourceLangId == eemblang",
+                    "when": "resourceLangId == eepl",
                     "command": "vscode-eemblang.flash"
                 },
                 {
-                    "when": "resourceLangId == eemblang",
+                    "when": "resourceLangId == eepl",
                     "command": "vscode-eemblang.settings",
                     "group": "navigation@5"
                 }

@@ -221,7 +221,7 @@ export let LastToolchain: ToolchainInfo | undefined = undefined;
 
   if ( ! ( await isDirAtUri(tmpDir) ) )
   {
-    vscode.workspace.fs.createDirectory(tmpDir).then(()=>{},  () => {
+    await vscode.workspace.fs.createDirectory(tmpDir).then(()=>{},  () => {
       console.log('Create dir error!');
     });
   }
@@ -449,6 +449,9 @@ type TargetPeriphInfo = {
   relayCount: number;
   uartCount: number;
   uiCount: number;
+  flashSize: number;
+	ramSize: number;
+  flashPageSize: number;
 }
 
 export type TargetInfo = {
@@ -523,14 +526,17 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
     devManId: 0,
     devName: "Device",
     frameWorkVerA: 0,
-    frameWorkVerB: 22,
+    frameWorkVerB: 40,
     triplet: "thumbv7m-none-none-eabi",
     pathToFile: "",
     periphInfo: {
       aoCount: 3,
       relayCount: 6,
       uartCount: 8,
-      uiCount: 11
+      uiCount: 11,
+      flashSize: 256*1024,
+      ramSize: 64*1024,
+      flashPageSize: 256
     },
     stdlib: "armv7m",
     runtime: "clang_rt.builtins-armv7m"
@@ -818,7 +824,7 @@ async function lookupInPath(exec: string): Promise<boolean> {
     return false;
 }
 
-async function isFileAtPath(path: string): Promise<boolean> {
+export async function isFileAtPath(path: string): Promise<boolean> {
     return isFileAtUri(vscode.Uri.file(path));
 }
 

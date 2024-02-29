@@ -24,10 +24,13 @@ export class Config {
         triplet: "thumbv7m-none-none-eabi",
         pathToFile: "",
         periphInfo: {
-          aoCount: 3,
-          relayCount: 6,
-          uartCount: 8,
-          uiCount: 11
+            aoCount: 3,
+            relayCount: 6,
+            uartCount: 8,
+            uiCount: 11,
+            flashSize: 256*1024,
+            ramSize: 64*1024,
+            flashPageSize: 256
         },
         stdlib: "armv7m",
         runtime: "clang_rt.builtins-armv7m"
