@@ -11,7 +11,7 @@ import * as https from 'https';
 
 import fetch from 'node-fetch';
 import { ClientRequest } from 'http';
-import { isDirAtUri, isFileAtUri } from "./toolchain";
+import { getCurrentToolchain, isDirAtUri, isFileAtUri } from "./toolchain";
 
 
 
@@ -20,6 +20,7 @@ export type PackageInfo = {
     pkgName: string;
     label: string;
     file: string;
+    toolchain: string;
     description: string;
     ver: string;
     repo: string;
@@ -40,6 +41,20 @@ export type PackageVersions = {
 
 
 export async function installPackage(packageInfo: PackageInfo): Promise<boolean> {
+
+
+    const currentToolchain = await getCurrentToolchain();
+    if (currentToolchain == undefined)
+    {
+        await vscode.window.showErrorMessage(`EEPL Toolchain is not installed.`);
+        return false;
+    }
+
+    if (getVerToInt(currentToolchain.ver) < getVerToInt(packageInfo.toolchain))
+    {
+       await vscode.window.showErrorMessage(`The package ${packageInfo.pkgName}[${packageInfo.ver}] requires Toolchain ver. '${packageInfo.toolchain}' or greater`);
+       return false;
+    }
 
 
     let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
@@ -271,16 +286,16 @@ export async function checkPackageUpdate(packageInfo: PackageInfo): Promise<Pack
         return undefined;
     }
 
-    const tmp = `{
-        "versions": [
-            { "pkgName": "Moderon", "label": "[v0.9]", "file": "moderon_0.9", "description": "[latest version]", "ver": "0.9.1", "repo": "https://github.com/Retrograd-Studios/eepl_vscode_ext_pkg_moderon/raw/v0_9_1/.eec.zip"}
-        ]
-    }`;
+    // const tmp = `{
+    //     "versions": [
+    //         { "pkgName": "Moderon", "label": "[v0.9]", "file": "moderon_0.9", "description": "[latest version]", "ver": "0.9.1", "repo": "https://github.com/Retrograd-Studios/eepl_vscode_ext_pkg_moderon/raw/v0_9_1/.eec.zip"}
+    //     ]
+    // }`;
 
-    const data2 = JSON.parse(tmp) as PackageVersions;
-    console.log(data2);
-    const jdata2 = JSON.stringify(data2);
-    console.log(jdata2);
+    // const data2 = JSON.parse(tmp) as PackageVersions;
+    // console.log(data2);
+    // const jdata2 = JSON.stringify(data2);
+    // console.log(jdata2);
 
     console.log(response);
     const data = await response.json() as PackageVersions;
@@ -317,6 +332,38 @@ export async function checkPackageUpdate(packageInfo: PackageInfo): Promise<Pack
 
 }
 
+export async function isPackageInstalled(packageInfo: PackageInfo): Promise<boolean>
+{
+    const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+
+    const packagePath = vscode.Uri.joinPath(
+        vscode.Uri.file(homeDir), ".eec", "Packages", packageInfo.pkgName, "packageInfo.json");
+
+    const isPackageFile = await isFileAtUri(packagePath);
+
+    return isPackageFile;
+}
+
+
+export async function getPackageInfo(origPackageInfo: PackageInfo): Promise<PackageInfo | undefined>
+{
+    const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+
+    const packagePath = vscode.Uri.joinPath(
+        vscode.Uri.file(homeDir), ".eec", "Packages", origPackageInfo.pkgName, "packageInfo.json");
+
+    const isPackageFile = await isFileAtUri(packagePath);
+    if (!isPackageFile)
+    {
+        return undefined;
+    }
+
+    const raw = fs.readFileSync(packagePath.fsPath).toString();
+    const packageInfo: PackageInfo = JSON.parse(raw);
+
+    return packageInfo;
+}
+
 
 export async function checkPackages() {
 
@@ -332,7 +379,7 @@ export async function checkPackages() {
     if (!isPackagesFile) {
         const defaultPackages: PackagesFile = {
             packages: [
-                { pkgName: "Moderon", label: "[1.0]", file: "", description: "Moderon Controllers", ver: "1.0", 
+                { pkgName: "Moderon", label: "[0.9.0]", file: "", toolchain: "0.1.0", description: "Moderon Controllers", ver: "0.9.0", 
                 repo: "https://github.com/Retrograd-Studios/eepl_vscode_ext_pkg_moderon/raw/main/versions.json" }
             ]
         };

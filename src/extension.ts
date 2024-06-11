@@ -8,7 +8,7 @@ import * as toolchain from './toolchain';
 
 import * as cp from "child_process";
 
-import { Config,  substituteVSCodeVariables } from "./config";
+import { Config } from "./config";
 import { activateTaskProvider, createTask } from "./tasks";
 import { isEasyDocument, execute } from "./util";
 
@@ -28,6 +28,7 @@ import { ToolchainsFile } from './toolchain';
 import { checkPackages } from './packages';
 import { execArgv } from 'process';
 import { createNewProject, selectExamples } from './examples';
+import { EFlasherClient } from './EFlasher/eflasher';
 
 //import { resolve } from 'path';
 
@@ -245,6 +246,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   console.log("Hello, World!");
 
+  // (async () => {
+  //   EFlasherClient.getPortList();
+  // })();
+  
+
   let extation = vscode.extensions.getExtension("YouTooLife.vscode-eemblang");
   
   console.log(extation);
@@ -365,7 +371,9 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flushDbg', () => {
-    return vscode.window.showInformationMessage("flushDbg", "Ok");
+    var eflashClient = new EFlasherClient(context);
+    eflashClient.eflashRun();
+    //return vscode.window.showInformationMessage("flushDbg", "Ok");
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.settings', () => {
@@ -376,40 +384,104 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
   const devName = config.get<string>('target.device');
+  //const devName: string = vscode.workspace.getConfiguration("eepl").get('target.device');
   let sbSelectTargetDev: vscode.StatusBarItem;
   sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	sbSelectTargetDev.command = 'vscode-eemblang.command.setTargetDevice';
+	sbSelectTargetDev.command = 'eepl.command.setTargetDevice';
 	context.subscriptions.push(sbSelectTargetDev);
   sbSelectTargetDev.text = devName;
   sbSelectTargetDev.tooltip = "Select target Device";
 	sbSelectTargetDev.show();
 
-  const toolchainName = config.get<string>('toolchain.version');
+  //const currentToolchain = await toolchain.getCurrentToolchain(); //config.get<string>('toolchain.version');
   let sbSelectToolchain: vscode.StatusBarItem;
   sbSelectToolchain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	sbSelectToolchain.command = 'vscode-eemblang.command.setToolchain';
+	sbSelectToolchain.command = 'eepl.command.setToolchain';
 	context.subscriptions.push(sbSelectToolchain);
-  sbSelectToolchain.text = toolchainName + (toolchain.IsNightlyToolchain ? "(Latest version)" : "(Old version)");
+  sbSelectToolchain.text = "Select toolchain";
   sbSelectToolchain.tooltip = "Select toolchain";
 	sbSelectToolchain.show();
 
-  let sbClearCache: vscode.StatusBarItem;
-  sbClearCache = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	sbClearCache.command = 'vscode-eemblang.command.clearCache';
-	context.subscriptions.push(sbSelectToolchain);
-  sbClearCache.text = "$(terminal-kill)";
-  sbClearCache.tooltip = "Clear cache";
-	sbClearCache.show();
+
+  // let sbClearCache: vscode.StatusBarItem;
+  // sbClearCache = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+	// sbClearCache.command = 'eepl.command.clearCache';
+	// context.subscriptions.push(sbSelectToolchain);
+  // sbClearCache.text = "$(terminal-kill)";
+  // sbClearCache.tooltip = "Clear cache";
+	// sbClearCache.show();
+
+
+
+
+
+  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async e => {
+
+
+		if (e.affectsConfiguration('eepl.target.device')) {
+      const devName = config.get<string>('target.device');
+      sbSelectTargetDev.text = devName;
+      config.targetDevice = await toolchain.getTargetWithDevName(devName);
+		}
+
+
+    if (e.affectsConfiguration('eepl.toolchain.version')) {
+      //const toolName = config.get<string>('toolchain.version');
+
+      const currentToolchain = await toolchain.getCurrentToolchain();
+
+      if (currentToolchain != undefined && 'label' in currentToolchain) {
+        sbSelectToolchain.text = currentToolchain.label;
+        if (toolchain.LastToolchain != undefined && toolchain.LastToolchain.ver != currentToolchain.ver)
+        {
+          sbSelectToolchain.text += "(old version)";
+        }
+      }
+      else {
+        sbSelectToolchain.text = "Not installed!";
+      }
+		}
+
+	}));
+
+
+
+
 
   (async () => {
     await toolchain.checkToolchain();
-    const targetDev = await toolchain.getTargetWithDevName(devName);
-    sbSelectTargetDev.text = targetDev.description;
-    config.targetDevice = targetDev;
-    sbSelectToolchain.text = config.get<string>('toolchain.version') + (toolchain.IsNightlyToolchain ? " (latest version)" : " (old version)");
+    let currentToolchain = await toolchain.getCurrentToolchain();
+    //const inCfg = config.get<toolchain.ToolchainInfo>("toolchain.version");
+      if (currentToolchain == undefined || !('ver' in currentToolchain))
+      {
+          currentToolchain = {
+          label: "",
+          file: "",
+          description: "",
+          ver: "0.0.0",
+          url: ""
+        };
+      }
+      else
+      {
+        currentToolchain.ver += ".0";
+      }
+    config.setGlobal("toolchain.version", currentToolchain);
   })();
 
-  vscode.commands.registerCommand('vscode-eemblang.command.clearCache', async () => {
+
+
+  
+
+  // (async () => {
+  //   await toolchain.checkToolchain();
+  //   const targetDev = await toolchain.getTargetWithDevName(devName);
+  //   sbSelectTargetDev.text = targetDev.description;
+  //   config.targetDevice = targetDev;
+  //   sbSelectToolchain.text = config.get<string>('toolchain.version') + (toolchain.IsNightlyToolchain ? " (latest version)" : " (old version)");
+  // })();
+
+  vscode.commands.registerCommand('eepl.command.clearCache', async () => {
 
     const devName = config.targetDevice.devName;
 
@@ -424,7 +496,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
   });
 
-  vscode.commands.registerCommand('vscode-eemblang.command.setTargetDevice', async () => {
+  vscode.commands.registerCommand('eepl.command.setTargetDevice', async () => {
 
 
     let pickTargets: any[] = [];
@@ -456,12 +528,13 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
   });
 
-  vscode.commands.registerCommand('vscode-eemblang.command.setToolchain', async () => {
+  vscode.commands.registerCommand('eepl.command.setToolchain', async () => {
 
 
     let pickTargets: any[] = [];
 
-    const prevVers = config.get<string>('toolchain.version');
+    //const prevVers = config.get<string>('toolchain.version');
+    const currentToolchain = await toolchain.getCurrentToolchain();
 
     const toolchains = await toolchain.getToolchains();
 
@@ -476,7 +549,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
           ".eec-tmp", `${toolchainInfo.file}.zip`
         );
 
-        const isPicked = (prevVers == toolchainInfo.label);
+        const isPicked = (currentToolchain ? currentToolchain.label == toolchainInfo.label : false);
         const pickItem = isPicked ? '$(check)' : ' ';
         const isLocal = (await toolchain.isFileAtUri(tmpFilePath));
         const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
@@ -511,7 +584,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
           url: ''
         };
 
-        const isPicked = (prevVers == toolchainInfo.label);
+        const isPicked = (currentToolchain ? currentToolchain.label == toolchainInfo.label : false);
         const pickItem = isPicked ? '$(check)' : ' ';
         const isLocal = true;
         const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
@@ -535,34 +608,18 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
     );
 
     if (target) {
-      await toolchain.installToolchain(target.toolchain);
-      await new Promise(f => setTimeout(f, 3000));
-      config.set("toolchain.version", target.label);
+      const isInstalled = await toolchain.installToolchain(target.toolchain);
+      // if (isInstalled)
+      // {
+      //   config.set("toolchain.version", await toolchain.getCurrentToolchain());
+      // }
     }
 
   });
 
 
 
-  context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async e => {
-
-		if (e.affectsConfiguration('eemblang.target.device')) {
-      const devName = config.get<string>('target.device');
-      sbSelectTargetDev.text = devName;
-      config.targetDevice = await toolchain.getTargetWithDevName(devName);
-		}
-
-    if (e.affectsConfiguration('eemblang.toolchain.version')) {
-      const toolName = config.get<string>('toolchain.version');
-
-      sbSelectToolchain.text = toolName;
-      if (toolchain.LastToolchain != undefined)
-      {
-        sbSelectToolchain.text += (toolchain.LastToolchain.label == toolName ? " (latest version)" : " (old version)");
-      }
-		}
-
-	}));
+  
 
   // let myStatusBarItem: vscode.StatusBarItem;
   // myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
@@ -573,11 +630,11 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 	// myStatusBarItem.show();
 
 
-  vscode.commands.registerCommand('vscode-eemblang.command.createNewProject', async () => { 
+  vscode.commands.registerCommand('eepl.command.createNewProject', async () => { 
       createNewProject();
   });
 
-  vscode.commands.registerCommand('vscode-eemblang.command.createProjectFromExample', async () => { 
+  vscode.commands.registerCommand('eepl.command.createProjectFromExample', async () => { 
     selectExamples();
   });
 

@@ -4,6 +4,8 @@ import * as path from "path";
 import * as readline from "readline";
 import * as vscode from "vscode";
 import { execute, log, memoizeAsync } from "./util";
+import * as fsExtra from 'fs-extra';
+import * as unzip from 'unzip-stream';
 
 import * as fs from 'fs';
 import * as https from 'https';
@@ -14,155 +16,155 @@ import { ClientRequest } from 'http';
 
 
 interface CompilationArtifact {
-    fileName: string;
-    name: string;
-    kind: string;
-    isTest: boolean;
+  fileName: string;
+  name: string;
+  kind: string;
+  isTest: boolean;
 }
 
 export interface ArtifactSpec {
-    easyArgs: string[];
-    filter?: (artifacts: CompilationArtifact[]) => CompilationArtifact[];
+  easyArgs: string[];
+  filter?: (artifacts: CompilationArtifact[]) => CompilationArtifact[];
 }
 
 export class Easy {
-    constructor(readonly rootFolder: string, readonly output: vscode.OutputChannel) {}
+  constructor(readonly rootFolder: string, readonly output: vscode.OutputChannel) { }
 
-    // Made public for testing purposes
-    static artifactSpec(args: readonly string[]): ArtifactSpec {
-        const easyArgs = [...args, "--message-format=json"];
+  // Made public for testing purposes
+  static artifactSpec(args: readonly string[]): ArtifactSpec {
+    const easyArgs = [...args, "--message-format=json"];
 
-        // arguments for a runnable from the quick pick should be updated.
-        // see crates\rust-analyzer\src\main_loop\handlers.rs, handle_code_lens
-        switch (easyArgs[0]) {
-            case "run":
-                easyArgs[0] = "build";
-                break;
-            case "test": {
-                if (!easyArgs.includes("--no-run")) {
-                    easyArgs.push("--no-run");
-                }
-                break;
+    // arguments for a runnable from the quick pick should be updated.
+    // see crates\rust-analyzer\src\main_loop\handlers.rs, handle_code_lens
+    switch (easyArgs[0]) {
+      case "run":
+        easyArgs[0] = "build";
+        break;
+      case "test": {
+        if (!easyArgs.includes("--no-run")) {
+          easyArgs.push("--no-run");
+        }
+        break;
+      }
+    }
+
+    const result: ArtifactSpec = { easyArgs: easyArgs };
+    if (easyArgs[0] === "test" || easyArgs[0] === "bench") {
+      // for instance, `crates\rust-analyzer\tests\heavy_tests\main.rs` tests
+      // produce 2 artifacts: {"kind": "bin"} and {"kind": "test"}
+      result.filter = (artifacts) => artifacts.filter((it) => it.isTest);
+    }
+
+    return result;
+  }
+
+  private async getArtifacts(spec: ArtifactSpec): Promise<CompilationArtifact[]> {
+    const artifacts: CompilationArtifact[] = [];
+
+    try {
+      await this.runEasy(
+        spec.easyArgs,
+        (message) => {
+          if (message.reason === "compiler-artifact" && message.executable) {
+            const isBinary = message.target.crate_types.includes("bin");
+            const isBuildScript = message.target.kind.includes("custom-build");
+            if ((isBinary && !isBuildScript) || message.profile.test) {
+              artifacts.push({
+                fileName: message.executable,
+                name: message.target.name,
+                kind: message.target.kind[0],
+                isTest: message.profile.test,
+              });
             }
-        }
-
-        const result: ArtifactSpec = { easyArgs: easyArgs };
-        if (easyArgs[0] === "test" || easyArgs[0] === "bench") {
-            // for instance, `crates\rust-analyzer\tests\heavy_tests\main.rs` tests
-            // produce 2 artifacts: {"kind": "bin"} and {"kind": "test"}
-            result.filter = (artifacts) => artifacts.filter((it) => it.isTest);
-        }
-
-        return result;
+          } else if (message.reason === "compiler-message") {
+            this.output.append(message.message.rendered);
+          }
+        },
+        (stderr) => this.output.append(stderr)
+      );
+    } catch (err) {
+      this.output.show(true);
+      throw new Error(`Easy invocation has failed: ${err}`);
     }
 
-    private async getArtifacts(spec: ArtifactSpec): Promise<CompilationArtifact[]> {
-        const artifacts: CompilationArtifact[] = [];
+    return spec.filter?.(artifacts) ?? artifacts;
+  }
 
-        try {
-            await this.runEasy(
-                spec.easyArgs,
-                (message) => {
-                    if (message.reason === "compiler-artifact" && message.executable) {
-                        const isBinary = message.target.crate_types.includes("bin");
-                        const isBuildScript = message.target.kind.includes("custom-build");
-                        if ((isBinary && !isBuildScript) || message.profile.test) {
-                            artifacts.push({
-                                fileName: message.executable,
-                                name: message.target.name,
-                                kind: message.target.kind[0],
-                                isTest: message.profile.test,
-                            });
-                        }
-                    } else if (message.reason === "compiler-message") {
-                        this.output.append(message.message.rendered);
-                    }
-                },
-                (stderr) => this.output.append(stderr)
-            );
-        } catch (err) {
-            this.output.show(true);
-            throw new Error(`Easy invocation has failed: ${err}`);
-        }
+  async executableFromArgs(args: readonly string[]): Promise<string> {
+    const artifacts = await this.getArtifacts(Easy.artifactSpec(args));
 
-        return spec.filter?.(artifacts) ?? artifacts;
+    if (artifacts.length === 0) {
+      throw new Error("No compilation artifacts");
+    } else if (artifacts.length > 1) {
+      throw new Error("Multiple compilation artifacts are not supported.");
     }
 
-    async executableFromArgs(args: readonly string[]): Promise<string> {
-        const artifacts = await this.getArtifacts(Easy.artifactSpec(args));
+    return artifacts[0].fileName;
+  }
 
-        if (artifacts.length === 0) {
-            throw new Error("No compilation artifacts");
-        } else if (artifacts.length > 1) {
-            throw new Error("Multiple compilation artifacts are not supported.");
-        }
+  private async runEasy(
+    easyArgs: string[],
+    onStdoutJson: (obj: any) => void,
+    onStderrString: (data: string) => void
+  ): Promise<number> {
+    const path = await easyPath();
+    return await new Promise((resolve, reject) => {
+      const easy = cp.spawn(path, easyArgs, {
+        stdio: ["ignore", "pipe", "pipe"],
+        cwd: this.rootFolder,
+      });
 
-        return artifacts[0].fileName;
-    }
+      easy.on("error", (err) => reject(new Error(`could not launch EEmbLang compiler: ${err}`)));
 
-    private async runEasy(
-        easyArgs: string[],
-        onStdoutJson: (obj: any) => void,
-        onStderrString: (data: string) => void
-    ): Promise<number> {
-        const path = await easyPath();
-        return await new Promise((resolve, reject) => {
-            const easy = cp.spawn(path, easyArgs, {
-                stdio: ["ignore", "pipe", "pipe"],
-                cwd: this.rootFolder,
-            });
+      easy.stderr.on("data", (chunk) => onStderrString(chunk.toString()));
 
-            easy.on("error", (err) => reject(new Error(`could not launch EEmbLang compiler: ${err}`)));
+      const rl = readline.createInterface({ input: easy.stdout });
+      rl.on("line", (line) => {
+        const message = JSON.parse(line);
+        onStdoutJson(message);
+      });
 
-            easy.stderr.on("data", (chunk) => onStderrString(chunk.toString()));
-
-            const rl = readline.createInterface({ input: easy.stdout });
-            rl.on("line", (line) => {
-                const message = JSON.parse(line);
-                onStdoutJson(message);
-            });
-
-            easy.on("exit", (exitCode, _) => {
-                if (exitCode === 0) resolve(exitCode);
-                else reject(new Error(`exit code: ${exitCode}.`));
-            });
-        });
-    }
+      easy.on("exit", (exitCode, _) => {
+        if (exitCode === 0) resolve(exitCode);
+        else reject(new Error(`exit code: ${exitCode}.`));
+      });
+    });
+  }
 }
 
 /** Mirrors `project_model::sysroot::discover_sysroot_dir()` implementation*/
 export async function getSysroot(dir: string): Promise<string> {
-    const easyPath = await getPathForExecutable("eec");
+  const easyPath = await getPathForExecutable("eec");
 
-    // do not memoize the result because the toolchain may change between runs
-    return await execute(`${easyPath} --print sysroot`, { cwd: dir });
+  // do not memoize the result because the toolchain may change between runs
+  return await execute(`${easyPath} --print sysroot`, { cwd: dir });
 }
 
 export async function getEasyId(dir: string): Promise<string> {
-    const easyPath = await getPathForExecutable("eec");
+  const easyPath = await getPathForExecutable("eec");
 
-    // do not memoize the result because the toolchain may change between runs
-    const data = await execute(`${easyPath} -V -v`, { cwd: dir });
-    const rx = /commit-hash:\s(.*)$/m;
+  // do not memoize the result because the toolchain may change between runs
+  const data = await execute(`${easyPath} -V -v`, { cwd: dir });
+  const rx = /commit-hash:\s(.*)$/m;
 
-    return rx.exec(data)![1];
+  return rx.exec(data)![1];
 }
 
 /** Mirrors `toolchain::cargo()` implementation */
 export function easyPath(): Promise<string> {
-    return getPathForExecutable("eec");
+  return getPathForExecutable("eec");
 }
 
 export function linkerPath(): Promise<string> {
-    return getPathForExecutable("ld.lld");
+  return getPathForExecutable("ld.lld");
 }
 
 export function ebuildPath(): Promise<string> {
-    return getPathForExecutable("ebuild");
+  return getPathForExecutable("ebuild");
 }
 
 export function flasherPath(): Promise<string> {
-    return getPathForExecutable("eflash");
+  return getPathForExecutable("eflash");
 }
 
 
@@ -185,11 +187,11 @@ export type ToolchainsFile = {
 export let LastToolchain: ToolchainInfo | undefined = undefined;
 
 
- export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<boolean> {
+export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<boolean> {
 
-  
-  let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-  
+
+  let homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+
   const tmpDir = vscode.Uri.joinPath(
     vscode.Uri.file(homeDir),
     ".eec-tmp"
@@ -200,49 +202,28 @@ export let LastToolchain: ToolchainInfo | undefined = undefined;
     ".eec-tmp", `${toolchainInfo.file}.zip`
   );
 
-  // const tmpUnzipDirPath = vscode.Uri.joinPath(
-  //   vscode.Uri.file(homeDir),
-  //   ".eec-tmp", `${toolchainInfo.file}`
-  // );
-
-  // const toolchainFilePath = vscode.Uri.joinPath(
-  //   vscode.Uri.file(homeDir),
-  //   ".eec-tmp", `${toolchainInfo.file}`, ".eec.zip"
-  // );
-
-  // const toolchainDirPath = vscode.Uri.joinPath(
-  //   vscode.Uri.file(homeDir),
-  //   ".eec"
-  // );
 
   const toolchainDirPath = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir)
-    );
+    vscode.Uri.file(homeDir)
+  );
 
-  if ( ! ( await isDirAtUri(tmpDir) ) )
-  {
-    await vscode.workspace.fs.createDirectory(tmpDir).then(()=>{},  () => {
+  if (!(await isDirAtUri(tmpDir))) {
+    await vscode.workspace.fs.createDirectory(tmpDir).then(() => { }, () => {
       console.log('Create dir error!');
     });
   }
-    //".eec.zip");
 
-    // const standardPath = vscode.Uri.joinPath(
-    //   vscode.Uri.file(homeDir));
-
-
-  const isExist = ( ( await isFileAtUri(tmpFilePath) ) ) ;
+  const isExist = fs.existsSync(tmpFilePath.fsPath);// ( ( await isFileAtUri(tmpFilePath) ) ) ;
 
   let result = false;
 
   const prog = await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Downloading...",
-      cancellable: true
+    location: vscode.ProgressLocation.Notification,
+    title: !isExist ? "Downloading..." : "Installing...",
+    cancellable: true
   }, async (progress, token) => {
-      
-    progress.report({message: "0 Mbyte", increment: 0});
 
+    progress.report({ message: "0 Mbyte", increment: 0 });
 
     let totalSize = 1;
     let prevSize = 0;
@@ -254,25 +235,25 @@ export let LastToolchain: ToolchainInfo | undefined = undefined;
 
 
 
-    async function download(url: string | URL /*| https.RequestOptions*/, targetFile: fs.PathLike): Promise<boolean> {  
+    async function download(url: string | URL /*| https.RequestOptions*/, targetFile: fs.PathLike): Promise<boolean> {
       return new Promise((resolve, reject) => {
-          
-        
-          request = https.get(url, /*{ headers: { responseType: 'arraybuffer'} } ,*/ response => {
-    
+
+
+        request = https.get(url, /*{ headers: { responseType: 'arraybuffer'} } ,*/ response => {
+
           const code = response.statusCode ?? 0
-    
+
           if (code >= 400) {
             isTerminated = true;
             reject(new Error(response.statusMessage));
           }
-    
+
           // handle redirects
           if (code > 300 && code < 400 && !!response.headers.location) {
             resolve(download(response.headers.location, targetFile));
             return;
           }
-    
+
           totalSize = response.headers['content-length'] ? Number(response.headers['content-length']) : 1;
           console.log(totalSize);
 
@@ -289,104 +270,117 @@ export let LastToolchain: ToolchainInfo | undefined = undefined;
             //currentSize += 1024*1024;//buffer.byteLength;
             currentSize += buffer.byteLength;
           });
-     
-          response.on('error', () => {
-             console.log("err");
-             isTerminated = true;
-             resolve(false);
-         });
 
-        
-    try {
-    
-      const fileWriter = fs.createWriteStream(targetFile)
-      .on('finish', async () => {
-        console.log("done");
-        progress.report({ message: "Installing...", increment: 0 });
-        let unzip = require('unzip-stream');
-        // let fsExtra = require('fs-extra'); 
-        // fsExtra.createReadStream(tmpFilePath.fsPath).on('error', (err) => {
-        //   console.log(err);
-        //   (async () => {
-        //     let buttons = ['Yes', 'No'];
-        //     let choice = await vscode.window.showErrorMessage(`Invalid toolcahin archive!\nDo you want to delete this file?`, ...buttons);
-        //     if (choice === buttons[0]) {
-        //       fs.rm(tmpFilePath.fsPath, () => {
-        //       });
-        //     }
-        //   })();
-        // }).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
+          response.on('error', (err) => {
+            console.log(err);
+            isTerminated = true;
+            resolve(false);
+            response.unpipe();
+          });
 
-      let fsExtra = require('fs-extra'); 
-      try {
-        let buttons = ['Yes', 'No'];
-        let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true } , ...buttons);
-        if (choice === buttons[0]) {
-            fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
-        }
-        fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
-      } catch(err) {
-        console.log();
-        (async () => {
-          let buttons = ['Yes', 'No'];
-          let choice = await vscode.window.showErrorMessage(`Invalid toolcahin archive!\nDo you want to delete this file?`, ...buttons);
-          if (choice === buttons[0]) {
-            fs.rm(tmpFilePath.fsPath, () => {
-            });
+
+          try {
+
+            let isAborted = false;
+            const fileWriter = fs.createWriteStream(targetFile, {})
+              .on('finish', async () => {
+
+
+                if (isAborted) {
+                  return;
+                }
+
+                console.log("done");
+                progress.report({ message: "Installing...", increment: -100 });
+                try {
+                  let buttons = ['Yes', 'No'];
+                  let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
+                  if (choice === buttons[0]) {
+                    fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
+                  }
+
+                  totalSize = fsExtra.statSync(tmpFilePath.fsPath).size;
+                  currentSize = 0;
+
+                  const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk) => {
+                    const buffer = chunk as Buffer;
+                    currentSize += buffer.length;
+                  });
+
+                  unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', () => {
+                    isTerminated = true;
+                  });
+
+                } catch (err) {
+                  console.log();
+                  (async () => {
+                    let buttons = ['Yes', 'No'];
+                    let choice = await vscode.window.showErrorMessage(`Invalid toolcahin archive!\nDo you want to delete this file?`, ...buttons);
+                    if (choice === buttons[0]) {
+                      fs.rm(tmpFilePath.fsPath, () => {
+                      });
+                    }
+                  })();
+                }
+
+                progress.report({ message: "Installing...", increment: 100 });
+                //isTerminated = true;
+                resolve(true);
+
+              }).on('error', () => {
+                console.log("err");
+                isTerminated = true;
+                resolve(false);
+                fileWriter.close();
+              }).on('unpipe', () => {
+                isAborted = true;
+                fileWriter.close();
+              });
+
+            response.pipe(fileWriter);
+
+          } catch (err) {
+            console.log(err);
           }
-        })();
-      }
 
-        // fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: tmpUnzipDirPath.fsPath }));
-        // progress.report({ message: "Installing...", increment: 50 });
-        // fsExtra.createReadStream(toolchainFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
-        // progress.report({ message: "Installing...", increment: 100 });
-        //fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
-        progress.report({ message: "Installing...", increment: 100 });
-        isTerminated = true;
-        resolve(true);
-        
-      }).on('error', () => {
-        console.log("err");
-        isTerminated = true;
-        resolve(false);
-      });
 
-      response.pipe(fileWriter);
-
-    } catch (err) {
-      console.log(err);
-    }
-    
-    
         }).on('error', error => {
           console.log(error);
           isTerminated = true;
           resolve(false);
-      }).setTimeout(10000).on('timeout', () => {
-        console.log("Request timeout");
-        isTerminated = true;
-        resolve(false);
-      });
+        }).setTimeout(10000).on('timeout', () => {
+          console.log("Request timeout");
+          isTerminated = true;
+          resolve(false);
+        });
 
-      //resolve(true);
-    });}
+        //resolve(true);
+      });
+    }
 
     const result0 = !isExist ? download(toolchainInfo.url, tmpFilePath.fsPath) : true;
 
     if (isExist) {
-      progress.report({ message: "Installing...", increment: 25 });
-      let unzip = require('unzip-stream');
-      let fsExtra = require('fs-extra'); 
+      progress.report({ message: "Installing...", increment: 0 });
       try {
-          let buttons = ['Yes', 'No'];
-          let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
-          if (choice === buttons[0]) {
-            fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
-          }
-        
-          fsExtra.createReadStream(tmpFilePath.fsPath).pipe(unzip.Extract({ path: toolchainDirPath.fsPath }));
-      } catch(err) {
+        let buttons = ['Yes', 'No'];
+        let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
+        if (choice === buttons[0]) {
+          fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
+        }
+
+        totalSize = fsExtra.statSync(tmpFilePath.fsPath).size;
+
+        const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk) => {
+          const buffer = chunk as Buffer;
+          currentSize += buffer.length;
+        });
+
+        unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', () => {
+          isTerminated = true;
+        });
+
+      } catch (err) {
         console.log();
         (async () => {
           let buttons = ['Yes', 'No'];
@@ -396,8 +390,9 @@ export let LastToolchain: ToolchainInfo | undefined = undefined;
             });
           }
         })();
+        isTerminated = true;
       }
-      isTerminated = true;
+
     }
 
     token.onCancellationRequested(() => {
@@ -406,42 +401,49 @@ export let LastToolchain: ToolchainInfo | undefined = undefined;
     });
 
     let prevPer = 0;
-    while (totalSize > currentSize && !isTerminated)
-    {
-      await new Promise(f => setTimeout(f, 1000));
+    while (!isTerminated) {
+      await new Promise(f => setTimeout(f, 100));
       totalSize = totalSize ? totalSize : 1;
-       const inPerc = Math.round(((currentSize))*100 / totalSize);
-       const inc = inPerc - prevPer;
-       prevPer = inPerc;
-       const currentSizeInMb =  Math.round((currentSize / 1024) / 1024) ;
-       const totalSizeInMb = Math.round((totalSize / 1024) / 1024);
-       console.log("["+currentSizeInMb+"/"+totalSizeInMb+" Mbytes]", inPerc);
-       progress.report({ message: "["+currentSizeInMb+"/"+totalSizeInMb+" Mbytes]", increment: inc });
+      const inPerc = Math.round(((currentSize)) * 100 / totalSize);
+      let inc = inPerc - prevPer;
+      prevPer = inPerc;
+      const currentSizeInMb = Math.round((currentSize / 1024) / 1024);
+      const totalSizeInMb = Math.round((totalSize / 1024) / 1024);
+      console.log("[" + currentSizeInMb + "/" + totalSizeInMb + " Mbytes]", inPerc);
+      progress.report({ message: "[" + currentSizeInMb + "/" + totalSizeInMb + " Mbytes]", increment: inc });
 
-       if (token.isCancellationRequested)
-       {
-          return false;
-       }
-      // const interval = setInterval(() => 
-      // {
-       
-      // }, 1000);
+      if (token.isCancellationRequested) {
+        return false;
+      }
+      
     }
 
     result = await result0;
 
     return;
+  });
+
+  //console.log("Alarm");
+
+  if (result == false && !isExist && fs.existsSync(tmpFilePath.fsPath)) {  // ( ( await isFileAtUri(tmpFilePath) ) ) ) {
+    fs.rm(tmpFilePath.fsPath, () => {
     });
+  }
 
-    console.log("Alarm");
 
-    if (result == false && !isExist && ( ( await isFileAtUri(tmpFilePath) ) ) ) {
-      fs.rm(tmpFilePath.fsPath, () => {
-      });
+
+  if (result) {
+    if (getVerToInt(toolchainInfo.ver) < getVerToInt("0.9.0")) {
+      const json = JSON.stringify(toolchainInfo).toString();
+      const toolchainInfoFile = vscode.Uri.joinPath(toolchainDirPath, ".eec", "toolchain.json");
+      fs.writeFileSync(toolchainInfoFile.fsPath, json, { flag: "w" });
     }
-    
+    const currentToolchain = await getCurrentToolchain();
+    vscode.workspace.getConfiguration("eepl").update("toolchain.version", currentToolchain, vscode.ConfigurationTarget.Global);
+  }
 
-    return result;
+
+  return result;
 }
 
 type TargetPeriphInfo = {
@@ -450,7 +452,7 @@ type TargetPeriphInfo = {
   uartCount: number;
   uiCount: number;
   flashSize: number;
-	ramSize: number;
+  ramSize: number;
   flashPageSize: number;
 }
 
@@ -458,8 +460,8 @@ export type TargetInfo = {
   description: string;
   devManId: number;
   devName: string;
-  frameWorkVerA: number; 
-  frameWorkVerB: number; 
+  frameWorkVerA: number;
+  frameWorkVerB: number;
   triplet: string;
   pathToFile: string;
   stdlib: string;
@@ -469,32 +471,32 @@ export type TargetInfo = {
 
 
 
-export async function getTargets() : Promise<TargetInfo[]> {
+export async function getTargets(): Promise<TargetInfo[]> {
 
   let targetsInfo: Array<TargetInfo> = [];
 
-  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
   const targetsDir = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir), ".eec", "targets");
+    vscode.Uri.file(homeDir), ".eec", "targets");
 
 
 
 
-  await vscode.workspace.fs.readDirectory(targetsDir).then( async (files) => {
+  await vscode.workspace.fs.readDirectory(targetsDir).then(async (files) => {
 
-    for (let element of files ) {
+    for (let element of files) {
 
       console.log("file: ", element[0]);
-      
-      if ( element[1] !=  vscode.FileType.Directory ) {
+
+      if (element[1] != vscode.FileType.Directory) {
         //console.log("is not dir");
         continue;
       }
 
-      const targetInfoFile =  vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
+      const targetInfoFile = vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
       const isExist = await isFileAtUri(targetInfoFile);
 
-      if ( !isExist) {
+      if (!isExist) {
         continue;
       }
 
@@ -514,12 +516,12 @@ export async function getTargets() : Promise<TargetInfo[]> {
 
 
 
-export async function getTargetWithDevName(devName: string) : Promise<TargetInfo> {
+export async function getTargetWithDevName(devName: string): Promise<TargetInfo> {
 
 
-  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
   const targetsDir = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir), ".eec", "targets");
+    vscode.Uri.file(homeDir), ".eec", "targets");
 
   let result: TargetInfo = {
     description: "[Device]",
@@ -534,28 +536,28 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
       relayCount: 6,
       uartCount: 8,
       uiCount: 11,
-      flashSize: 256*1024,
-      ramSize: 64*1024,
+      flashSize: 256 * 1024,
+      ramSize: 64 * 1024,
       flashPageSize: 256
     },
     stdlib: "armv7m",
     runtime: "clang_rt.builtins-armv7m"
   };
 
-  await vscode.workspace.fs.readDirectory(targetsDir).then( async (files) => {
+  await vscode.workspace.fs.readDirectory(targetsDir).then(async (files) => {
 
 
-    for (const element of files ) {
+    for (const element of files) {
 
-      if ( element[1] !=  vscode.FileType.Directory ) {
+      if (element[1] != vscode.FileType.Directory) {
         //console.log("is not dir");
         continue;
       }
 
-      const targetInfoFile =  vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
+      const targetInfoFile = vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
       const isExist = await isFileAtUri(targetInfoFile);
 
-      if ( !isExist) {
+      if (!isExist) {
         continue;
       }
 
@@ -563,10 +565,9 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
       const targetInfo = JSON.parse(raw) as TargetInfo;
       targetInfo.pathToFile = targetInfoFile.fsPath;
 
-      if (targetInfo.description != devName)
-      {
+      if (targetInfo.description != devName) {
         if (result.description == "[Device]") {
-            result = targetInfo;
+          result = targetInfo;
         }
         continue;
       }
@@ -587,16 +588,16 @@ export async function getTargetWithDevName(devName: string) : Promise<TargetInfo
 
 
 
-function getVerToInt(str: string) : number {
+function getVerToInt(str: string): number {
   let nums = str.split('.', 3);
   return (parseInt(nums[0]) << 16) | (parseInt(nums[1]) << 8) | (parseInt(nums[2]));
 }
 
-async function getLastToolchainInfo() : Promise<ToolchainInfo | undefined> {
+async function getLastToolchainInfo(): Promise<ToolchainInfo | undefined> {
 
   let lastToolchain: ToolchainInfo | undefined = undefined;
 
-  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e)=>{
+  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e) => {
     console.log(e);
     return undefined;
   });
@@ -606,13 +607,13 @@ async function getLastToolchainInfo() : Promise<ToolchainInfo | undefined> {
   }
 
   const data = await response.json() as ToolchainsFile;
-  
+
   for (var toolchainInfo of data.toolchains) {
     // if ( lastToolchain == undefined ) {
     //   lastToolchain = toolchainInfo;
     //   continue;
     // }
-    if ( lastToolchain == undefined || getVerToInt(toolchainInfo.ver) >  getVerToInt(lastToolchain.ver) ) {
+    if (lastToolchain == undefined || getVerToInt(toolchainInfo.ver) > getVerToInt(lastToolchain.ver)) {
       lastToolchain = toolchainInfo;
     }
   }
@@ -625,11 +626,11 @@ async function getLastToolchainInfo() : Promise<ToolchainInfo | undefined> {
 
 export let IsNightlyToolchain = false;
 
-export async function getToolchains() : Promise<ToolchainInfo[] | undefined> {
+export async function getToolchains(): Promise<ToolchainInfo[] | undefined> {
 
   let lastToolchain: ToolchainInfo | undefined = undefined;
 
-  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e)=>{
+  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e) => {
     console.log(e);
     return undefined;
   });
@@ -639,32 +640,29 @@ export async function getToolchains() : Promise<ToolchainInfo[] | undefined> {
   }
 
   const data = await response.json() as ToolchainsFile;
-  
+
   for (var toolchainInfo of data.toolchains) {
-    if ( lastToolchain == undefined || getVerToInt(toolchainInfo.ver) >  getVerToInt(lastToolchain.ver) ) {
+    if (lastToolchain == undefined || getVerToInt(toolchainInfo.ver) > getVerToInt(lastToolchain.ver)) {
       lastToolchain = toolchainInfo;
     }
   }
 
   LastToolchain = lastToolchain;
-  if ( lastToolchain == undefined )
-  {
+  if (lastToolchain == undefined) {
     return undefined;
   }
 
-  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
   const verFile = vscode.Uri.joinPath(
     vscode.Uri.file(homeDir), ".eec", "toolchain.json");
 
   const isLocal = (await isFileAtUri(verFile));
-  if (isLocal)
-  {
+  if (isLocal) {
     const raw = fs.readFileSync(verFile.fsPath).toString();
     const currentVer = JSON.parse(raw);
     IsNightlyToolchain = (currentVer.ver == lastToolchain.ver);
   }
-  else
-  {
+  else {
     IsNightlyToolchain = false;
   }
 
@@ -676,11 +674,11 @@ export async function getToolchains() : Promise<ToolchainInfo[] | undefined> {
 
 
 
-export async function checkToolchain(): Promise<boolean> {  
+export async function checkToolchain(): Promise<boolean> {
 
   //let path = await toolchain.easyPath();
   //console.log(path);
-  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
   // const standardTmpPath = vscode.Uri.joinPath(
   //   vscode.Uri.file(homeDir),
   //   ".eec.zip");
@@ -690,7 +688,7 @@ export async function checkToolchain(): Promise<boolean> {
   //   console.log(standardTmpPath);
 
   const verFile = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir), ".eec", "toolchain.json");
+    vscode.Uri.file(homeDir), ".eec", "toolchain.json");
 
   const toolchainFile = await isFileAtUri(verFile);
 
@@ -703,12 +701,11 @@ export async function checkToolchain(): Promise<boolean> {
       if (!res) {
         vscode.window.showErrorMessage(`Error: EEmbLang Toolchain is not installed!\nCan't download file`);
       }
-      else
-      {
+      else {
         IsNightlyToolchain = true;
       }
-      await new Promise(f => setTimeout(f, 3000));
-      await vscode.commands.executeCommand('vscode-eemblang.command.setTargetDevice');
+      //await new Promise(f => setTimeout(f, 3000));
+      //await vscode.commands.executeCommand('eepl.command.setTargetDevice');
       return res;
     }
     return false;
@@ -717,44 +714,62 @@ export async function checkToolchain(): Promise<boolean> {
   // type CfgType = {
   //   ver: string;
   // }
-  
+
   // function isCfgType(o: any): o is CfgType {
   //   return "ver" in o 
   // }
-  
+
   const lastToolchain = await getLastToolchainInfo();
-  if (lastToolchain == undefined)
-  {
+  if (lastToolchain == undefined) {
     return true;
   }
   // const parsed = JSON.parse(json)
   //if (isCfgType(data)) {
-    //console.log(data.ver);
+  //console.log(data.ver);
 
-    const raw = fs.readFileSync(verFile.fsPath).toString();
-    const currentVer = JSON.parse(raw);
+  const raw = fs.readFileSync(verFile.fsPath).toString();
+  const currentVer = JSON.parse(raw);
 
-      if (currentVer.ver != lastToolchain.ver) {
-        IsNightlyToolchain = false;
-        let buttons = ['Install', 'Not now'];
-        let choice = await vscode.window.showInformationMessage(`New  EEPL Toolchain (v${lastToolchain.ver}) is available!\nDo you want Download and Install now?`, ...buttons);
-        if (choice === buttons[0]) {
-          const res = await installToolchain(lastToolchain);
-          if (res)
-          {
-            IsNightlyToolchain = true;
-            vscode.workspace.getConfiguration("eemblang").update('toolchain.version', lastToolchain.label);
-          }
-          return res;
-        }
-      }
-      else
-      {
+  if (currentVer.ver != lastToolchain.ver) {
+    IsNightlyToolchain = false;
+    let buttons = ['Install', 'Not now'];
+    let choice = await vscode.window.showInformationMessage(`New  EEPL Toolchain (v${lastToolchain.ver}) is available!\nDo you want Download and Install now?`, ...buttons);
+    if (choice === buttons[0]) {
+      const res = await installToolchain(lastToolchain);
+      if (res) {
         IsNightlyToolchain = true;
+        //vscode.workspace.getConfiguration("eemblang").update('toolchain.version', lastToolchain.label);
       }
+      return res;
+    }
+  }
+  else {
+    IsNightlyToolchain = true;
+  }
   //}
 
   return true;
+
+}
+
+export async function getCurrentToolchain(): Promise<ToolchainInfo | undefined> {
+
+  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+
+  const verFile = vscode.Uri.joinPath(
+    vscode.Uri.file(homeDir), ".eec", "toolchain.json");
+
+  const toolchainFile = await isFileAtUri(verFile);
+
+  if (!toolchainFile) {
+    return undefined;
+  }
+
+  const raw = fs.readFileSync(verFile.fsPath).toString();
+
+  const currentToolchain: ToolchainInfo = JSON.parse(raw);
+
+  return currentToolchain;
 
 }
 
@@ -764,82 +779,82 @@ export async function checkToolchain(): Promise<boolean> {
 
 /** Mirrors `toolchain::get_path_for_executable()` implementation */
 export const getPathForExecutable = memoizeAsync(
-    // We apply caching to decrease file-system interactions
-    async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild"| "eflash" | "arm-none-eabi-gdb"): Promise<string> => {
-        {
-            const envVar = process.env[executableName.toUpperCase()];
-            if (envVar) return envVar;
-        }
-
-        if (await lookupInPath(executableName)) return executableName;
-
-        const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-        const eecPath = vscode.Uri.joinPath(
-          vscode.Uri.file(homeDir),
-          ".eec",
-          "bin",
-          os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
-        );
-        const armToolchainPath = vscode.Uri.joinPath(
-          vscode.Uri.file(homeDir),
-          ".eec",
-          "arm-toolchain",
-          os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
-        );
-
-        try {
-            if (await isFileAtUri(eecPath)) return eecPath.fsPath;
-        } catch (err) {
-          log.error("Failed to read the fs info", err);
-          return "notFound";
-        }
-
-        try {
-          if (await isFileAtUri(armToolchainPath)) return armToolchainPath.fsPath;
-        } catch (err) {
-          log.error("Failed to read the fs info", err);
-          return "notFound";
-        }
-
-        return "notFound";
-        
+  // We apply caching to decrease file-system interactions
+  async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild" | "eflash" | "arm-none-eabi-gdb"): Promise<string> => {
+    {
+      const envVar = process.env[executableName.toUpperCase()];
+      if (envVar) return envVar;
     }
+
+    if (await lookupInPath(executableName)) return executableName;
+
+    const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+    const eecPath = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir),
+      ".eec",
+      "bin",
+      os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
+    );
+    const armToolchainPath = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir),
+      ".eec",
+      "arm-toolchain",
+      os.type() === "Windows_NT" ? `${executableName}.exe` : executableName
+    );
+
+    try {
+      if (await isFileAtUri(eecPath)) return eecPath.fsPath;
+    } catch (err) {
+      log.error("Failed to read the fs info", err);
+      return "notFound";
+    }
+
+    try {
+      if (await isFileAtUri(armToolchainPath)) return armToolchainPath.fsPath;
+    } catch (err) {
+      log.error("Failed to read the fs info", err);
+      return "notFound";
+    }
+
+    return "notFound";
+
+  }
 );
 
 async function lookupInPath(exec: string): Promise<boolean> {
-    const paths = process.env.PATH ?? "";
+  const paths = process.env.PATH ?? "";
 
-    console.log(os.type());
+  console.log(os.type());
 
-    const candidates = paths.split(path.delimiter).flatMap((dirInPath) => {
-        const candidate = path.join(dirInPath, exec);
-        return os.type() === "Windows_NT" ? [candidate, `${candidate}.exe`] : [candidate];
-    });
+  const candidates = paths.split(path.delimiter).flatMap((dirInPath) => {
+    const candidate = path.join(dirInPath, exec);
+    return os.type() === "Windows_NT" ? [candidate, `${candidate}.exe`] : [candidate];
+  });
 
-    for await (const isFile of candidates.map(isFileAtPath)) {
-        if (isFile) {
-            return true;
-        }
+  for await (const isFile of candidates.map(isFileAtPath)) {
+    if (isFile) {
+      return true;
     }
-    return false;
+  }
+  return false;
 }
 
 export async function isFileAtPath(path: string): Promise<boolean> {
-    return isFileAtUri(vscode.Uri.file(path));
+  return isFileAtUri(vscode.Uri.file(path));
 }
 
 export async function isFileAtUri(uri: vscode.Uri): Promise<boolean> {
-    try {
-        return ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.File) !== 0;
-    } catch {
-        return false;
-    }
+  try {
+    return ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.File) !== 0;
+  } catch {
+    return false;
+  }
 }
 
 export async function isDirAtUri(uri: vscode.Uri): Promise<boolean> {
   try {
-      return ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.Directory) !== 0;
+    return ((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.Directory) !== 0;
   } catch {
-      return false;
+    return false;
   }
 }

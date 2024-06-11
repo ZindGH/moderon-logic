@@ -71,7 +71,7 @@ export async function runDebug(config: Config) {
 
 if (config.targetDevice.description == "[Device]")
 {
-    await vscode.commands.executeCommand('vscode-eemblang.command.setTargetDevice');
+    await vscode.commands.executeCommand('eepl.command.setTargetDevice');
     if (config.targetDevice.description == "[Device]")
     {
         return new Promise((resolve, reject) => { reject(); });

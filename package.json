@@ -15,7 +15,10 @@
     "keywords": [
         "eepl",
         "eemblang",
-        "vscode-eemblang"
+        "vscode-eemblang",
+        "vscode-eepl",
+        "moderon",
+        "Moderon Logic"
     ],
     "categories": [
         "Programming Languages",
@@ -32,8 +35,8 @@
         "onCustomEditor:vscode-eemblang.tableEditor",
         "onCommand:vscode-eemblang.modbus.locals.new",
         "onCommand:extension.vscode-eemblang.compileProject",
-        "onCommand:vscode-eemblang.command.createNewProject",
-        "onCommand:vscode-eemblang.command.createProjectFromExample"
+        "onCommand:eepl.command.createNewProject",
+        "onCommand:eepl.command.createProjectFromExample"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -49,9 +52,11 @@
         "vscode-debugadapter": "1.38.0-pre.4"
     },
     "devDependencies": {
+        "@types/fs-extra": "^11.0.4",
         "@types/glob": "^8.0.0",
         "@types/mocha": "^10.0.0",
         "@types/node": "16.x",
+        "@types/unzip-stream": "^0.3.4",
         "@types/vscode": "^1.72.0",
         "@typescript-eslint/eslint-plugin": "^5.38.1",
         "@typescript-eslint/parser": "^5.38.1",
@@ -288,11 +293,11 @@
         ],
         "commands": [
             {
-                "command": "vscode-eemblang.command.createNewProject",
+                "command": "eepl.command.createNewProject",
                 "title": "EEPL: create new project"
             },
             {
-                "command": "vscode-eemblang.command.createProjectFromExample",
+                "command": "eepl.command.createProjectFromExample",
                 "title": "EEPL: create project from example"
             },
             {
@@ -354,19 +359,19 @@
                 "icon": "$(settings)"
             },
             {
-                "command": "vscode-eemblang.command.setTargetDevice",
+                "command": "eepl.command.setTargetDevice",
                 "title": "Set target device",
                 "category": "vscode-eemblang",
                 "icon": "$(settings)"
             },
             {
-                "command": "vscode-eemblang.command.setToolchain",
+                "command": "eepl.command.setToolchain",
                 "title": "Set Toolchain",
                 "category": "vscode-eemblang",
                 "icon": "$(settings)"
             },
             {
-                "command": "vscode-eemblang.command.clearCache",
+                "command": "eepl.command.clearCache",
                 "title": "Clear artifacts Cache",
                 "category": "vscode-eemblang",
                 "icon": "$(settings)"
@@ -376,23 +381,81 @@
             {
                 "title": "EEPL",
                 "properties": {
-                    "eemblang.target.device": {
-                        "title": "Device",
+                    "eepl.target.device": {
                         "type": "string",
                         "default": "Device",
                         "markdownDescription": "Target device"
                     },
-                    "eemblang.toolchain.version": {
-                        "title": "Version",
-                        "type": "string",
-                        "default": "Toolchain",
-                        "markdownDescription": "Current toolchain"
+                    "eepl.toolchain.version": {
+                        "type": "object",
+                        "default": null,
+                        "markdownDescription": "Current Toolchain version. Click \\[ **[Set Toolchain](command:eepl.command.setToolchain)** \\] to select Toolchain version."
                     },
-                    "eemblang.build.inputFile": {
-                        "title": "Source file or path",
+                    "eepl.build.inputFile": {
                         "type": "string",
                         "default": "${workspaceTarget.uri.fsPath}/main.es",
                         "description": "Path to source file or directory for compilation"
+                    },
+                    "eepl.eflash.port": {
+                        "type": "string",
+                        "default": "COM3",
+                        "description": "SerialPort Name"
+                    },
+                    "eepl.eflash.isForceErase": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Erase all pages while flushing"
+                    },
+                    "eepl.eflash.isSetDefauls": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Reset Device storage to Defaults"
+                    },
+                    "eepl.eflash.baudrate": {
+                        "type": "string",
+                        "default": "9600",
+                        "enum": [
+                            "9600",
+                            "19200",
+                            "38400",
+                            "115200",
+                            "921600"
+                        ],
+                        "description": "SerialPort Baudrate"
+                    },
+                    "eepl.eflash.parity": {
+                        "type": "string",
+                        "default": "no",
+                        "enum": [
+                            "no",
+                            "even",
+                            "odd"
+                        ],
+                        "description": "SerialPort Parity"
+                    },
+                    "eepl.eflash.stopbits": {
+                        "type": "string",
+                        "default": "1",
+                        "enum": [
+                            "1",
+                            "2"
+                        ],
+                        "enumDescriptions": [
+                            "One stop bit",
+                            "Two stop bits"
+                        ],
+                        "description": "SerialPort StopBits"
+                    },
+                    "eepl.eflash.test": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": [
+                            "123",
+                            ""
+                        ],
+                        "description": "Test array"
                     }
                 }
             }
@@ -437,9 +500,9 @@
         }
     },
     "dependencies": {
-        "fs-extra": "^11.1.0",
+        "fs-extra": "^11.2.0",
         "node-fetch": "^3.3.0",
-        "unzip-stream": "^0.3.1",
+        "unzip-stream": "^0.3.4",
         "vsce": "^2.15.0"
     }
 }

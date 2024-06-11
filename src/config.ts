@@ -2,16 +2,19 @@ import * as path from "path";
 import * as os from "os";
 import * as vscode from "vscode";
 //import { Env } from "./client";
-import { log } from "./util";
+//import { log } from "./util";
 import { TargetInfo } from "./toolchain";
 
 
-export type RunnableEnvCfg =
-    | undefined
-    | Record<string, string>
-    | { mask?: string; env: Record<string, string> }[];
+// export type RunnableEnvCfg =
+//     | undefined
+//     | Record<string, string>
+//     | { mask?: string; env: Record<string, string> }[];
 
 export class Config {
+
+    context: vscode.ExtensionContext;
+
     readonly extensionId = "YouTooLife.vscode-eemblang";
     configureLang: vscode.Disposable | undefined;
 
@@ -36,71 +39,72 @@ export class Config {
         runtime: "clang_rt.builtins-armv7m"
       };
 
-    readonly rootSection = "eemblang";
-    private readonly requiresReloadOpts = [
-        "easy",
-        "procMacro",
-        "serverPath",
-        "server",
-        "files",
-        "lens", // works as lens.*
-    ].map((opt) => `${this.rootSection}.${opt}`);
+    readonly rootSection = "eepl";
+    // private readonly requiresReloadOpts = [
+    //     "easy",
+    //     "procMacro",
+    //     "serverPath",
+    //     "server",
+    //     "files",
+    //     "lens", // works as lens.*
+    // ].map((opt) => `${this.rootSection}.${opt}`);
 
-    readonly package: {
-        version: string;
-        releaseTag: string | null;
-        enableProposedApi: boolean | undefined;
-    } = vscode.extensions.getExtension(this.extensionId)!.packageJSON;
+    // readonly package: {
+    //     version: string;
+    //     releaseTag: string | null;
+    //     enableProposedApi: boolean | undefined;
+    // } = vscode.extensions.getExtension(this.extensionId)!.packageJSON;
 
-    readonly globalStorageUri: vscode.Uri;
+    // readonly globalStorageUri: vscode.Uri;
 
     constructor(ctx: vscode.ExtensionContext) {
-        this.globalStorageUri = ctx.globalStorageUri;
-        vscode.workspace.onDidChangeConfiguration(
-            this.onDidChangeConfiguration,
-            this,
-            ctx.subscriptions
-        );
-        this.refreshLogging();
-        this.configureLanguage();
+        this.context = ctx;
+        // this.globalStorageUri = ctx.globalStorageUri;
+        // vscode.workspace.onDidChangeConfiguration(
+        //     this.onDidChangeConfiguration,
+        //     this,
+        //     ctx.subscriptions
+        // );
+        // this.refreshLogging();
+        // this.configureLanguage();
     }
 
     dispose() {
-        this.configureLang?.dispose();
+        //this.configureLang?.dispose();
     }
 
-    private refreshLogging() {
-        log.setEnabled(this.traceExtension);
-        log.info("Extension version:", this.package.version);
+    // private refreshLogging() {
+    //     log.setEnabled(this.traceExtension);
+    //     log.info("Extension version:", this.package.version);
 
-        const cfg = Object.entries(this.cfg).filter(([_, val]) => !(val instanceof Function));
-        log.info("Using configuration", Object.fromEntries(cfg));
-    }
+    //     const cfg = Object.entries(this.cfg).filter(([_, val]) => !(val instanceof Function));
+    //     log.info("Using configuration", Object.fromEntries(cfg));
+    // }
 
-    private async onDidChangeConfiguration(event: vscode.ConfigurationChangeEvent) {
-        this.refreshLogging();
+    // private async onDidChangeConfiguration(event: vscode.ConfigurationChangeEvent) {
+    //     this.refreshLogging();
 
-        this.configureLanguage();
+    //     this.configureLanguage();
 
-        const requiresReloadOpt = this.requiresReloadOpts.find((opt) =>
-            event.affectsConfiguration(opt)
-        );
+    //     const requiresReloadOpt = this.requiresReloadOpts.find((opt) =>
+    //         event.affectsConfiguration(opt)
+    //     );
 
-        if (!requiresReloadOpt) return;
+    //     if (!requiresReloadOpt) return;
 
-        if (this.restartServerOnConfigChange) {
-            await vscode.commands.executeCommand("rust-analyzer.reload");
-            return;
-        }
+    //     if (this.restartServerOnConfigChange) {
+    //         await vscode.commands.executeCommand("rust-analyzer.reload");
+    //         return;
+    //     }
 
-        const message = `Changing "${requiresReloadOpt}" requires a server restart`;
-        const userResponse = await vscode.window.showInformationMessage(message, "Restart now");
+    //     const message = `Changing "${requiresReloadOpt}" requires a server restart`;
+    //     const userResponse = await vscode.window.showInformationMessage(message, "Restart now");
 
-        if (userResponse) {
-            const command = "rust-analyzer.reload";
-            await vscode.commands.executeCommand(command);
-        }
-    }
+    //     if (userResponse) {
+    //         const command = "rust-analyzer.reload";
+    //         await vscode.commands.executeCommand(command);
+    //     }
+    // }
 
     /**
      * Sets up additional language configuration that's impossible to do via a
@@ -109,67 +113,67 @@ export class Config {
      * [1]: https://github.com/Microsoft/vscode/issues/11514#issuecomment-244707076
      */
     private configureLanguage() {
-        if (this.typingContinueCommentsOnNewline && !this.configureLang) {
-            const indentAction = vscode.IndentAction.None;
+        // if (this.typingContinueCommentsOnNewline && !this.configureLang) {
+        //     const indentAction = vscode.IndentAction.None;
 
-            this.configureLang = vscode.languages.setLanguageConfiguration("eemblang", {
-                onEnterRules: [
-                    {
-                        // Doc single-line comment
-                        // e.g. ///|
-                        beforeText: /^\s*\/{3}.*$/,
-                        action: { indentAction, appendText: "/// " },
-                    },
-                    {
-                        // Parent doc single-line comment
-                        // e.g. //!|
-                        beforeText: /^\s*\/{2}\!.*$/,
-                        action: { indentAction, appendText: "//! " },
-                    },
-                    {
-                        // Begins an auto-closed multi-line comment (standard or parent doc)
-                        // e.g. /** | */ or /*! | */
-                        beforeText: /^\s*\/\*(\*|\!)(?!\/)([^\*]|\*(?!\/))*$/,
-                        afterText: /^\s*\*\/$/,
-                        action: {
-                            indentAction: vscode.IndentAction.IndentOutdent,
-                            appendText: " * ",
-                        },
-                    },
-                    {
-                        // Begins a multi-line comment (standard or parent doc)
-                        // e.g. /** ...| or /*! ...|
-                        beforeText: /^\s*\/\*(\*|\!)(?!\/)([^\*]|\*(?!\/))*$/,
-                        action: { indentAction, appendText: " * " },
-                    },
-                    {
-                        // Continues a multi-line comment
-                        // e.g.  * ...|
-                        beforeText: /^(\ \ )*\ \*(\ ([^\*]|\*(?!\/))*)?$/,
-                        action: { indentAction, appendText: "* " },
-                    },
-                    {
-                        // Dedents after closing a multi-line comment
-                        // e.g.  */|
-                        beforeText: /^(\ \ )*\ \*\/\s*$/,
-                        action: { indentAction, removeText: 1 },
-                    },
-                ],
-            });
-        }
-        if (!this.typingContinueCommentsOnNewline && this.configureLang) {
-            this.configureLang.dispose();
-            this.configureLang = undefined;
-        }
+        //     this.configureLang = vscode.languages.setLanguageConfiguration("eemblang", {
+        //         onEnterRules: [
+        //             {
+        //                 // Doc single-line comment
+        //                 // e.g. ///|
+        //                 beforeText: /^\s*\/{3}.*$/,
+        //                 action: { indentAction, appendText: "/// " },
+        //             },
+        //             {
+        //                 // Parent doc single-line comment
+        //                 // e.g. //!|
+        //                 beforeText: /^\s*\/{2}\!.*$/,
+        //                 action: { indentAction, appendText: "//! " },
+        //             },
+        //             {
+        //                 // Begins an auto-closed multi-line comment (standard or parent doc)
+        //                 // e.g. /** | */ or /*! | */
+        //                 beforeText: /^\s*\/\*(\*|\!)(?!\/)([^\*]|\*(?!\/))*$/,
+        //                 afterText: /^\s*\*\/$/,
+        //                 action: {
+        //                     indentAction: vscode.IndentAction.IndentOutdent,
+        //                     appendText: " * ",
+        //                 },
+        //             },
+        //             {
+        //                 // Begins a multi-line comment (standard or parent doc)
+        //                 // e.g. /** ...| or /*! ...|
+        //                 beforeText: /^\s*\/\*(\*|\!)(?!\/)([^\*]|\*(?!\/))*$/,
+        //                 action: { indentAction, appendText: " * " },
+        //             },
+        //             {
+        //                 // Continues a multi-line comment
+        //                 // e.g.  * ...|
+        //                 beforeText: /^(\ \ )*\ \*(\ ([^\*]|\*(?!\/))*)?$/,
+        //                 action: { indentAction, appendText: "* " },
+        //             },
+        //             {
+        //                 // Dedents after closing a multi-line comment
+        //                 // e.g.  */|
+        //                 beforeText: /^(\ \ )*\ \*\/\s*$/,
+        //                 action: { indentAction, removeText: 1 },
+        //             },
+        //         ],
+        //     });
+        // }
+        // if (!this.typingContinueCommentsOnNewline && this.configureLang) {
+        //     this.configureLang.dispose();
+        //     this.configureLang = undefined;
+        // }
     }
 
     // We don't do runtime config validation here for simplicity. More on stackoverflow:
     // https://stackoverflow.com/questions/60135780/what-is-the-best-way-to-type-check-the-configuration-for-vscode-extension
 
-    public get cfg(): vscode.WorkspaceConfiguration {
-        const _cfg = vscode.workspace.getConfiguration(this.rootSection);
-        return _cfg;
-    }
+    // public get cfg(): vscode.WorkspaceConfiguration {
+    //     const _cfg = vscode.workspace.getConfiguration(this.rootSection);
+    //     return _cfg;
+    // }
 
     /**
      * Beware that postfix `!` operator erases both `null` and `undefined`.
@@ -188,117 +192,121 @@ export class Config {
      * So this getter handles this quirk by not requiring the caller to use postfix `!`
      */
     public get<T>(path: string): T {
-        return this.cfg.get<T>(path)!;
+        return vscode.workspace.getConfiguration(this.rootSection).get<T>(path)!;
     }
 
     public set(path: string, value: any) {
-        this.cfg.update(path, value, vscode.ConfigurationTarget.Workspace);
+        vscode.workspace.getConfiguration(this.rootSection).update(path, value);
     }
 
-    get serverPath() {
-        return this.get<null | string>("server.path") ?? this.get<null | string>("serverPath");
-    }
-    // get serverExtraEnv(): Env {
-    //     const extraEnv =
-    //         this.get<{ [key: string]: string | number } | null>("server.extraEnv") ?? {};
-    //     return Object.fromEntries(
-    //         Object.entries(extraEnv).map(([k, v]) => [k, typeof v !== "string" ? v.toString() : v])
-    //     );
-    // }
-    get traceExtension() {
-        return this.get<boolean>("trace.extension");
+    public setGlobal(path: string, value: any) {
+        vscode.workspace.getConfiguration(this.rootSection).update(path, value, vscode.ConfigurationTarget.Global);
     }
 
-    get easyRunner() {
-        return this.get<string | undefined>("easyRunner");
-    }
+//     get serverPath() {
+//         return this.get<null | string>("server.path") ?? this.get<null | string>("serverPath");
+//     }
+//     // get serverExtraEnv(): Env {
+//     //     const extraEnv =
+//     //         this.get<{ [key: string]: string | number } | null>("server.extraEnv") ?? {};
+//     //     return Object.fromEntries(
+//     //         Object.entries(extraEnv).map(([k, v]) => [k, typeof v !== "string" ? v.toString() : v])
+//     //     );
+//     // }
+//     get traceExtension() {
+//         return this.get<boolean>("trace.extension");
+//     }
 
-    get runnableEnv() {
-        const item = this.get<any>("runnableEnv");
-        if (!item) return item;
-        const fixRecord = (r: Record<string, any>) => {
-            for (const key in r) {
-                if (typeof r[key] !== "string") {
-                    r[key] = String(r[key]);
-                }
-            }
-        };
-        if (item instanceof Array) {
-            item.forEach((x) => fixRecord(x.env));
-        } else {
-            fixRecord(item);
-        }
-        return item;
-    }
+//     get easyRunner() {
+//         return this.get<string | undefined>("easyRunner");
+//     }
 
-    get restartServerOnConfigChange() {
-        return this.get<boolean>("restartServerOnConfigChange");
-    }
+//     get runnableEnv() {
+//         const item = this.get<any>("runnableEnv");
+//         if (!item) return item;
+//         const fixRecord = (r: Record<string, any>) => {
+//             for (const key in r) {
+//                 if (typeof r[key] !== "string") {
+//                     r[key] = String(r[key]);
+//                 }
+//             }
+//         };
+//         if (item instanceof Array) {
+//             item.forEach((x) => fixRecord(x.env));
+//         } else {
+//             fixRecord(item);
+//         }
+//         return item;
+//     }
 
-    get typingContinueCommentsOnNewline() {
-        return this.get<boolean>("typing.continueCommentsOnNewline");
-    }
+//     get restartServerOnConfigChange() {
+//         return this.get<boolean>("restartServerOnConfigChange");
+//     }
 
-    get debug() {
-        let sourceFileMap = this.get<Record<string, string> | "auto">("debug.sourceFileMap");
-        if (sourceFileMap !== "auto") {
-            // "/rustc/<id>" used by suggestions only.
-            const { ["/eec/<id>"]: _, ...trimmed } =
-                this.get<Record<string, string>>("debug.sourceFileMap");
-            sourceFileMap = trimmed;
-        }
+//     get typingContinueCommentsOnNewline() {
+//         return this.get<boolean>("typing.continueCommentsOnNewline");
+//     }
 
-        return {
-            engine: this.get<string>("debug.engine"),
-            engineSettings: this.get<object>("debug.engineSettings"),
-            openDebugPane: this.get<boolean>("debug.openDebugPane"),
-            sourceFileMap: sourceFileMap,
-        };
-    }
+//     get debug() {
+//         let sourceFileMap = this.get<Record<string, string> | "auto">("debug.sourceFileMap");
+//         if (sourceFileMap !== "auto") {
+//             // "/rustc/<id>" used by suggestions only.
+//             const { ["/eec/<id>"]: _, ...trimmed } =
+//                 this.get<Record<string, string>>("debug.sourceFileMap");
+//             sourceFileMap = trimmed;
+//         }
 
-    get hoverActions() {
-        return {
-            enable: this.get<boolean>("hover.actions.enable"),
-            implementations: this.get<boolean>("hover.actions.implementations.enable"),
-            references: this.get<boolean>("hover.actions.references.enable"),
-            run: this.get<boolean>("hover.actions.run.enable"),
-            debug: this.get<boolean>("hover.actions.debug.enable"),
-            gotoTypeDef: this.get<boolean>("hover.actions.gotoTypeDef.enable"),
-        };
-    }
-}
+//         return {
+//             engine: this.get<string>("debug.engine"),
+//             engineSettings: this.get<object>("debug.engineSettings"),
+//             openDebugPane: this.get<boolean>("debug.openDebugPane"),
+//             sourceFileMap: sourceFileMap,
+//         };
+//     }
 
-const VarRegex = new RegExp(/\$\{(.+?)\}/g);
+//     get hoverActions() {
+//         return {
+//             enable: this.get<boolean>("hover.actions.enable"),
+//             implementations: this.get<boolean>("hover.actions.implementations.enable"),
+//             references: this.get<boolean>("hover.actions.references.enable"),
+//             run: this.get<boolean>("hover.actions.run.enable"),
+//             debug: this.get<boolean>("hover.actions.debug.enable"),
+//             gotoTypeDef: this.get<boolean>("hover.actions.gotoTypeDef.enable"),
+//         };
+//     }
+// }
 
-export function substituteVSCodeVariableInString(val: string): string {
-    return val.replace(VarRegex, (substring: string, varName) => {
-        if (typeof varName === "string") {
-            return computeVscodeVar(varName) || substring;
-        } else {
-            return substring;
-        }
-    });
-}
+// const VarRegex = new RegExp(/\$\{(.+?)\}/g);
 
-export function substituteVSCodeVariables(resp: any): any {
-    if (typeof resp === "string") {
-        return substituteVSCodeVariableInString(resp);
-    } else if (resp && Array.isArray(resp)) {
-        return resp.map((val) => {
-            return substituteVSCodeVariables(val);
-        });
-    } else if (resp && typeof resp === "object") {
-        const res: { [key: string]: any } = {};
-        for (const key in resp) {
-            const val = resp[key];
-            res[key] = substituteVSCodeVariables(val);
-        }
-        return res;
-    } else if (typeof resp === "function") {
-        return null;
-    }
-    return resp;
-}
+// export function substituteVSCodeVariableInString(val: string): string {
+//     return val.replace(VarRegex, (substring: string, varName) => {
+//         if (typeof varName === "string") {
+//             return computeVscodeVar(varName) || substring;
+//         } else {
+//             return substring;
+//         }
+//     });
+// }
+
+// export function substituteVSCodeVariables(resp: any): any {
+//     if (typeof resp === "string") {
+//         return substituteVSCodeVariableInString(resp);
+//     } else if (resp && Array.isArray(resp)) {
+//         return resp.map((val) => {
+//             return substituteVSCodeVariables(val);
+//         });
+//     } else if (resp && typeof resp === "object") {
+//         const res: { [key: string]: any } = {};
+//         for (const key in resp) {
+//             const val = resp[key];
+//             res[key] = substituteVSCodeVariables(val);
+//         }
+//         return res;
+//     } else if (typeof resp === "function") {
+//         return null;
+//     }
+//     return resp;
+// }
 // export function substituteVariablesInEnv(env: Env): Env {
 //     const missingDeps = new Set<string>();
 //     // vscode uses `env:ENV_NAME` for env vars resolution, and it's easier
@@ -376,48 +384,48 @@ export function substituteVSCodeVariables(resp: any): any {
 //     return resolvedEnv;
 // }
 
-function computeVscodeVar(varName: string): string | null {
-    const workspaceFolder = () => {
-        const folders = vscode.workspace.workspaceFolders ?? [];
-        if (folders.length === 1) {
-            // TODO: support for remote workspaces?
-            return folders[0].uri.fsPath;
-        } else if (folders.length > 1) {
-            // could use currently opened document to detect the correct
-            // workspace. However, that would be determined by the document
-            // user has opened on Editor startup. Could lead to
-            // unpredictable workspace selection in practice.
-            // It's better to pick the first one
-            return folders[0].uri.fsPath;
-        } else {
-            // no workspace opened
-            return "";
-        }
-    };
-    // https://code.visualstudio.com/docs/editor/variables-reference
-    const supportedVariables: { [k: string]: () => string } = {
-        workspaceFolder,
+// function computeVscodeVar(varName: string): string | null {
+//     const workspaceFolder = () => {
+//         const folders = vscode.workspace.workspaceFolders ?? [];
+//         if (folders.length === 1) {
+//             // TODO: support for remote workspaces?
+//             return folders[0].uri.fsPath;
+//         } else if (folders.length > 1) {
+//             // could use currently opened document to detect the correct
+//             // workspace. However, that would be determined by the document
+//             // user has opened on Editor startup. Could lead to
+//             // unpredictable workspace selection in practice.
+//             // It's better to pick the first one
+//             return folders[0].uri.fsPath;
+//         } else {
+//             // no workspace opened
+//             return "";
+//         }
+//     };
+//     // https://code.visualstudio.com/docs/editor/variables-reference
+//     const supportedVariables: { [k: string]: () => string } = {
+//         workspaceFolder,
 
-        workspaceFolderBasename: () => {
-            return path.basename(workspaceFolder());
-        },
+//         workspaceFolderBasename: () => {
+//             return path.basename(workspaceFolder());
+//         },
 
-        cwd: () => process.cwd(),
-        userHome: () => os.homedir(),
+//         cwd: () => process.cwd(),
+//         userHome: () => os.homedir(),
 
-        // see
-        // https://github.com/microsoft/vscode/blob/08ac1bb67ca2459496b272d8f4a908757f24f56f/src/vs/workbench/api/common/extHostVariableResolverService.ts#L81
-        // or
-        // https://github.com/microsoft/vscode/blob/29eb316bb9f154b7870eb5204ec7f2e7cf649bec/src/vs/server/node/remoteTerminalChannel.ts#L56
-        execPath: () => process.env.VSCODE_EXEC_PATH ?? process.execPath,
+//         // see
+//         // https://github.com/microsoft/vscode/blob/08ac1bb67ca2459496b272d8f4a908757f24f56f/src/vs/workbench/api/common/extHostVariableResolverService.ts#L81
+//         // or
+//         // https://github.com/microsoft/vscode/blob/29eb316bb9f154b7870eb5204ec7f2e7cf649bec/src/vs/server/node/remoteTerminalChannel.ts#L56
+//         execPath: () => process.env.VSCODE_EXEC_PATH ?? process.execPath,
 
-        pathSeparator: () => path.sep,
-    };
+//         pathSeparator: () => path.sep,
+//     };
 
-    if (varName in supportedVariables) {
-        return supportedVariables[varName]();
-    } else {
-        // return "${" + varName + "}";
-        return null;
-    }
+//     if (varName in supportedVariables) {
+//         return supportedVariables[varName]();
+//     } else {
+//         // return "${" + varName + "}";
+//         return null;
+//     }
 }

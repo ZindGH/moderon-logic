@@ -13,7 +13,29 @@ body {
 	font-weight: var(--vscode-font-weight);
 	font-family: var(--vscode-font-family);
 	background-color: var(--vscode-editor-background);
+	
 }
+
+body.vscode-light {
+	/* --input-checked-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23111' d='M6.564.75l-3.59 3.612-1.538-1.55L0 4.26 2.974 7.25 8 2.193z'/%3e%3c/svg%3e"); */
+	--input-checked-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' %3e%3cpath fill='%23111' clip-rule='evenodd' d='M14.431 3.323l-8.47 10-.79-.036-3.35-4.77.818-.574 2.978 4.24 8.051-9.506.764.646z'/%3e%3c/svg%3e");
+}
+  
+body.vscode-dark {
+	/* --input-checked-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23eee' d='M6.564.75l-3.59 3.612-1.538-1.55L0 4.26 2.974 7.25 8 2.193z'/%3e%3c/svg%3e"); */
+	--input-checked-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' %3e%3cpath fill='%23eee' clip-rule='evenodd' d='M14.431 3.323l-8.47 10-.79-.036-3.35-4.77.818-.574 2.978 4.24 8.051-9.506.764.646z'/%3e%3c/svg%3e");
+}
+  
+body.vscode-high-contrast {
+	color: var(--vscode-foreground);
+	fill: var(--vscode-foreground);
+	--input-checked-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23e1e' d='M6.564.75l-3.59 3.612-1.538-1.55L0 4.26 2.974 7.25 8 2.193z'/%3e%3c/svg%3e");
+	/* --input-checked-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' %3e%3cpath fill='currentColor' clip-rule='evenodd' d='M14.431 3.323l-8.47 10-.79-.036-3.35-4.77.818-.574 2.978 4.24 8.051-9.506.764.646z'/%3e%3c/svg%3e"); */
+	
+}
+
+
+
 
 ol,
 ul {
@@ -45,7 +67,8 @@ code {
 }
 
 button {
-	border: none;
+	border: 1px solid var(--vscode-settings-textInputBorder);
+	border-radius: 2px;
 	padding: var(--input-padding-vertical) var(--input-padding-horizontal);
 	width: 100%;
 	text-align: center;
@@ -73,15 +96,48 @@ button.secondary:hover {
 	background: var(--vscode-button-secondaryHoverBackground);
 }
 
+
+
+/* input {
+	border: var(--vscode-input-border);
+	background: var(--vscode-input-background);
+} */
+
+/* label {
+	padding-right: 18px;
+	padding-top: 8px;
+	padding-bottom: 8px;
+} */
+
+/* label:not([class='custom-checkbox']) {
+	display: block;
+} */
+
+label {
+	display: block;
+}
+
 input:not([type='checkbox']),
 textarea {
 	display: block;
-	width: 100%;
-	border: none;
+	width: 98%;
+	/* border: none; */
+	/* border: var(--vscode-settings-textInputBorder); */
+
+	/* border: 1px solid rgb(201, 201, 201); */
+	border: 1px solid var(--vscode-settings-textInputBorder);
+
+	border-radius: 2px;
+
+	/* color: var(--vscode-settings-textInputForeground);
+	outline-color: var(--vscode-settings-textInputBorder);
+	background-color: var(--vscode-settings-textInputBackground); */
+
 	font-family: var(--vscode-font-family);
 	padding: var(--input-padding-vertical) var(--input-padding-horizontal);
 	color: var(--vscode-input-foreground);
-	outline-color: var(--vscode-input-border);
+	/* outline-color: var(--vscode-input-foreground); */
+	outline-color: var(--vscode-settings-textInputBorder);
 	background-color: var(--vscode-input-background);
 }
 
@@ -89,3 +145,193 @@ input::placeholder,
 textarea::placeholder {
 	color: var(--vscode-input-placeholderForeground);
 }
+
+
+/* input[type='checkbox']
+{
+	display: inline-block;
+	border: 1px solid var(--vscode-settings-textInputBorder);
+	border-radius: 2px;
+	color: var(--vscode-input-foreground);
+	outline-color: var(--vscode-settings-textInputBorder);
+	background-color: var(--vscode-input-background);
+}
+
+input[type='checkbox']:checked
+{
+	display: inline-block;
+	border: 1px solid var(--vscode-settings-textInputBorder);
+	border-radius: 2px;
+	color: var(--vscode-input-foreground);
+	outline-color: var(--vscode-settings-textInputBorder);
+	background-color: var(--vscode-input-background);
+}
+
+input[type='checkbox']:focus
+{
+	display: inline-block;
+	border: 1px solid var(--vscode-settings-textInputBorder);
+	border-radius: 2px;
+	color: var(--vscode-input-foreground);
+	outline-color: var(--vscode-focusBorder);
+	background-color: var(--vscode-input-background);
+} */
+
+/* для элемента input c type="checkbox" */
+.custom-checkbox>input {
+	position: absolute;
+	z-index: -1;
+	opacity: 0;
+  }
+
+  /* для элемента label, связанного с .custom-checkbox */
+  .custom-checkbox>span {
+	display: inline-flex;
+	align-items: center;
+	user-select: none;
+  }
+
+  /* создание в label псевдоэлемента before со следующими стилями */
+  .custom-checkbox>span::before {
+	content: '';
+	display: inline-block;
+	width: 1em;
+	height: 1em;
+	flex-shrink: 0;
+	flex-grow: 0;
+	border: 1px solid var(--vscode-settings-checkboxBorder);
+	border-radius: 0.25em;
+	margin-right: 0.5em;
+	background-repeat: no-repeat;
+	background-position: center center;
+	background-size: 100% 100%;
+	color: var(--vscode-settings-checkboxForeground);
+	background-color: var(--vscode-settings-checkboxBackground);
+  }
+
+  .custom-checkbox:hover {
+	cursor: pointer;
+  }
+
+  /* стили при наведении курсора на checkbox */
+  /* .custom-checkbox>input:not(:disabled):not(:checked)+span:hover::before {
+	cursor: pointer;
+  } */
+
+  /* стили для активного чекбокса (при нажатии на него) */
+  /* .custom-checkbox>input:not(:disabled):active+span::before {
+	background-color: #b3d7ff;
+	border-color: #b3d7ff;
+  } */
+
+  /* стили для чекбокса, находящегося в фокусе */
+  .custom-checkbox>input:focus+span::before {
+	/* box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); */
+	border-color: var(--vscode-focusBorder);
+	outline-color: var(--vscode-focusBorder);
+  }
+
+  /* стили для чекбокса, находящегося в фокусе и не находящегося в состоянии checked */
+  .custom-checkbox>input:focus:not(:checked)+span::before {
+	border-color: var(--vscode-focusBorder);
+	/* color: var(--vscode-settings-checkboxForeground); */
+	/* background-color: var(--vscode-settings-checkboxBackground); */
+	outline-color: var(--vscode-focusBorder);
+  }
+
+  /* стили для чекбокса, находящегося в состоянии checked */
+  .custom-checkbox>input:checked+span::before {
+	/* border-color: #0b76ef; */
+	/* background-color: var(--vscode-settings-checkboxBackground); */
+	/* background-image: var(--vscode-symbolIcon-booleanForeground); */
+	background-image: var(--input-checked-img);
+	/* background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%23555' d='M6.564.75l-3.59 3.612-1.538-1.55L0 4.26 2.974 7.25 8 2.193z'/%3e%3c/svg%3e"); */
+  }
+
+  /* стили для чекбокса, находящегося в состоянии disabled */
+  .custom-checkbox>input:disabled+span::before {
+	background-color: #e9ecef;
+  }
+
+
+select {
+	display: block;
+	width: 100%;
+	cursor: pointer;
+	font-family: var(--vscode-font-family);
+	padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+
+	border:  1px solid var(--vscode-settings-dropdownBorder);
+	border-radius: 2px;
+
+	outline: var(--vscode-settings-dropdownBorder);
+	background: var(--vscode-settings-dropdownBackground);
+	color: var(--vscode-settings-dropdownForeground);
+  }
+
+  option {
+	display: block;
+	width: 100%;
+	cursor: pointer;
+	font-family: var(--vscode-font-family);
+	padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+
+	border:  1px solid var(--vscode-settings-dropdownListBorder);
+	border-radius: 2px;
+
+	outline: var(--vscode-settings-dropdownListBorder);
+	background: var(--vscode-settings-dropdownBackground);
+	color: var(--vscode-settings-dropdownForeground);
+
+  }
+
+
+  option:hover {
+	/* background: var(--vscode-settings-rowHoverBackground); */
+	font-family: var(--vscode-font-family);
+	padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+
+	background: var(--vscode-settings-dropdownBackground);
+	color: var(--vscode-settings-dropdownForeground);
+	outline: var(--vscode-settings-dropdownListBorder);
+  }
+
+
+  /* form:hover {
+	background: var(--vscode-settings-rowHoverBackground);
+  } */
+
+  .form-block {
+	display:block;
+	/* background: blue; */
+  }
+
+
+  .form-block-row {
+	display: block;
+	margin: 10% 10% 10% 10%;
+	/* margin-block-start: 20%; */
+  }
+
+
+  .form-block:hover {
+	background: var(--vscode-settings-rowHoverBackground);
+  }
+
+  /* option:checked {
+	background: olive linear-gradient(olive, olive);
+	color: blue;
+  } */
+
+
+  /* .select-arrow {
+	position: absolute;
+	top: 38px;
+	right: 15px;
+	width: 0;
+	height: 0;
+	pointer-events: none; 
+	border-style: solid;
+	border-width: 8px 5px 0 5px;
+	border-color: #7b7b7b transparent transparent transparent;
+  } */

@@ -151,7 +151,7 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
 
     if (config.targetDevice.description == "[Device]")
     {
-        await vscode.commands.executeCommand('vscode-eemblang.command.setTargetDevice');
+        await vscode.commands.executeCommand('eepl.command.setTargetDevice');
         if (config.targetDevice.description == "[Device]")
         {
             return new Promise((resolve, reject) => { reject(); });
