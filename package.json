@@ -382,9 +382,9 @@
                 "title": "EEPL",
                 "properties": {
                     "eepl.target.device": {
-                        "type": "string",
-                        "default": "Device",
-                        "markdownDescription": "Target device"
+                        "type": "object",
+                        "default": null,
+                        "markdownDescription": "Current target. Click \\[ **[Set Target](command:eepl.command.setTargetDevice)** \\] to select target device or platform."
                     },
                     "eepl.toolchain.version": {
                         "type": "object",

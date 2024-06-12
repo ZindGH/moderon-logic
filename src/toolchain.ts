@@ -13,6 +13,7 @@ import * as https from 'https';
 
 import fetch from 'node-fetch';
 import { ClientRequest } from 'http';
+import { Config } from "./config";
 
 
 interface CompilationArtifact {
@@ -302,7 +303,7 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
                   totalSize = fsExtra.statSync(tmpFilePath.fsPath).size;
                   currentSize = 0;
 
-                  const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk) => {
+                  const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk: Buffer) => {
                     const buffer = chunk as Buffer;
                     currentSize += buffer.length;
                   });
@@ -371,7 +372,7 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
 
         totalSize = fsExtra.statSync(tmpFilePath.fsPath).size;
 
-        const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk) => {
+        const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk: Buffer) => {
           const buffer = chunk as Buffer;
           currentSize += buffer.length;
         });
@@ -433,11 +434,16 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
 
 
   if (result) {
+    const toolchainInfoFile = vscode.Uri.joinPath(toolchainDirPath, ".eec", "toolchain.json");
     if (getVerToInt(toolchainInfo.ver) < getVerToInt("0.9.0")) {
       const json = JSON.stringify(toolchainInfo).toString();
-      const toolchainInfoFile = vscode.Uri.joinPath(toolchainDirPath, ".eec", "toolchain.json");
       fs.writeFileSync(toolchainInfoFile.fsPath, json, { flag: "w" });
     }
+    const toolchainTmpInfoFile = vscode.Uri.joinPath(
+      vscode.Uri.file(homeDir),
+      ".eec-tmp", `toolchainInfo.${toolchainInfo.file}.json`
+    );
+    fs.copyFileSync(toolchainInfoFile.fsPath, toolchainTmpInfoFile.fsPath);
     const currentToolchain = await getCurrentToolchain();
     vscode.workspace.getConfiguration("eepl").update("toolchain.version", currentToolchain, vscode.ConfigurationTarget.Global);
   }
@@ -482,7 +488,7 @@ export async function getTargets(): Promise<TargetInfo[]> {
 
 
 
-  await vscode.workspace.fs.readDirectory(targetsDir).then(async (files) => {
+  await vscode.workspace.fs.readDirectory(targetsDir).then(async (files: [string, vscode.FileType][]) => {
 
     for (let element of files) {
 
@@ -516,74 +522,159 @@ export async function getTargets(): Promise<TargetInfo[]> {
 
 
 
-export async function getTargetWithDevName(devName: string): Promise<TargetInfo> {
+export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev: vscode.StatusBarItem) {
+  
+  const cfgTarget = config.get<TargetInfo>('target.device');
 
+  const targets = await getTargets();
 
-  const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
-  const targetsDir = vscode.Uri.joinPath(
-    vscode.Uri.file(homeDir), ".eec", "targets");
-
-  let result: TargetInfo = {
+  let sTarget = {
     description: "[Device]",
     devManId: 0,
-    devName: "Device",
+    devName: "Select Target",
     frameWorkVerA: 0,
-    frameWorkVerB: 40,
+    frameWorkVerB: 22,
     triplet: "thumbv7m-none-none-eabi",
     pathToFile: "",
     periphInfo: {
-      aoCount: 3,
-      relayCount: 6,
-      uartCount: 8,
-      uiCount: 11,
-      flashSize: 256 * 1024,
-      ramSize: 64 * 1024,
-      flashPageSize: 256
+        aoCount: 3,
+        relayCount: 6,
+        uartCount: 8,
+        uiCount: 11,
+        flashSize: 256*1024,
+        ramSize: 64*1024,
+        flashPageSize: 256
     },
     stdlib: "armv7m",
     runtime: "clang_rt.builtins-armv7m"
-  };
-
-  await vscode.workspace.fs.readDirectory(targetsDir).then(async (files) => {
+};
 
 
-    for (const element of files) {
 
-      if (element[1] != vscode.FileType.Directory) {
-        //console.log("is not dir");
-        continue;
+  if (cfgTarget != undefined && 'pathToFile' in cfgTarget) {
+
+    for (const target of targets) {
+
+      if (target.pathToFile == cfgTarget.pathToFile)
+      {
+        sTarget = cfgTarget;
+        break;
       }
 
-      const targetInfoFile = vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
-      const isExist = await isFileAtUri(targetInfoFile);
-
-      if (!isExist) {
-        continue;
-      }
-
-      const raw = fs.readFileSync(targetInfoFile.fsPath).toString();
-      const targetInfo = JSON.parse(raw) as TargetInfo;
-      targetInfo.pathToFile = targetInfoFile.fsPath;
-
-      if (targetInfo.description != devName) {
-        if (result.description == "[Device]") {
-          result = targetInfo;
-        }
-        continue;
-      }
-
-      result = targetInfo;
     }
 
-    // files.forEach(element => {
-    //   console.log("file: ", element[0]);
-    // }); 
-  }, () => {
-    console.log("can't find toolchain dir");
-  });
+  }
 
-  return result;
+  
+
+  sbSelectTargetDev.text = sTarget.devName;
+
+  config.targetDevice = sTarget;
+  config.set("target.device", sTarget);
+
 }
+
+
+
+export async function setCurrentTarget(target: TargetInfo, config: Config, sbSelectTargetDev: vscode.StatusBarItem) {
+    config.targetDevice = target;
+    sbSelectTargetDev.text = target.devName;
+    config.set("target.device", target);
+}
+
+
+
+
+export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolchain: vscode.StatusBarItem) {
+  
+  const cfgToolchain = config.get<ToolchainInfo>('toolchain.version');
+
+  const currentToolchain = await getCurrentToolchain();
+
+  if (currentToolchain != undefined && 'label' in currentToolchain) {
+    sbSelectToolchain.text = currentToolchain.label;
+    if (LastToolchain != undefined && LastToolchain.ver != currentToolchain.ver)
+    {
+      sbSelectToolchain.text += "(old version)";
+    }
+
+    config.setGlobal('toolchain.version', currentToolchain);
+  }
+  else {
+      sbSelectToolchain.text = "Not installed!";
+      config.setGlobal('toolchain.version', undefined);
+  }
+
+}
+
+// export async function getTargetWithDevName(devName: string): Promise<TargetInfo> {
+
+
+//   const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+//   const targetsDir = vscode.Uri.joinPath(
+//     vscode.Uri.file(homeDir), ".eec", "targets");
+
+//   let result: TargetInfo = {
+//     description: "[Device]",
+//     devManId: 0,
+//     devName: "Device",
+//     frameWorkVerA: 0,
+//     frameWorkVerB: 40,
+//     triplet: "thumbv7m-none-none-eabi",
+//     pathToFile: "",
+//     periphInfo: {
+//       aoCount: 3,
+//       relayCount: 6,
+//       uartCount: 8,
+//       uiCount: 11,
+//       flashSize: 256 * 1024,
+//       ramSize: 64 * 1024,
+//       flashPageSize: 256
+//     },
+//     stdlib: "armv7m",
+//     runtime: "clang_rt.builtins-armv7m"
+//   };
+
+//   await vscode.workspace.fs.readDirectory(targetsDir).then(async (files: [string, vscode.FileType][]) => {
+
+
+//     for (const element of files) {
+
+//       if (element[1] != vscode.FileType.Directory) {
+//         //console.log("is not dir");
+//         continue;
+//       }
+
+//       const targetInfoFile = vscode.Uri.joinPath(targetsDir, element[0], "targetInfo.json");
+//       const isExist = await isFileAtUri(targetInfoFile);
+
+//       if (!isExist) {
+//         continue;
+//       }
+
+//       const raw = fs.readFileSync(targetInfoFile.fsPath).toString();
+//       const targetInfo = JSON.parse(raw) as TargetInfo;
+//       targetInfo.pathToFile = targetInfoFile.fsPath;
+
+//       if (targetInfo.description != devName) {
+//         if (result.description == "[Device]") {
+//           result = targetInfo;
+//         }
+//         continue;
+//       }
+
+//       result = targetInfo;
+//     }
+
+//     // files.forEach(element => {
+//     //   console.log("file: ", element[0]);
+//     // }); 
+//   }, () => {
+//     console.log("can't find toolchain dir");
+//   });
+
+//   return result;
+// }
 
 
 
@@ -738,7 +829,6 @@ export async function checkToolchain(): Promise<boolean> {
       const res = await installToolchain(lastToolchain);
       if (res) {
         IsNightlyToolchain = true;
-        //vscode.workspace.getConfiguration("eemblang").update('toolchain.version', lastToolchain.label);
       }
       return res;
     }

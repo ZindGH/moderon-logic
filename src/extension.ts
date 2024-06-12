@@ -383,15 +383,16 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
 
-  const devName = config.get<string>('target.device');
+  //const devName = config.get<string>('target.device');
   //const devName: string = vscode.workspace.getConfiguration("eepl").get('target.device');
   let sbSelectTargetDev: vscode.StatusBarItem;
   sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
 	sbSelectTargetDev.command = 'eepl.command.setTargetDevice';
 	context.subscriptions.push(sbSelectTargetDev);
-  sbSelectTargetDev.text = devName;
-  sbSelectTargetDev.tooltip = "Select target Device";
+  sbSelectTargetDev.text = "Select Target";
+  sbSelectTargetDev.tooltip = "Select target Device/Platform";
 	sbSelectTargetDev.show();
+  toolchain.checkAndSetCurrentTarget(config, sbSelectTargetDev);
 
   //const currentToolchain = await toolchain.getCurrentToolchain(); //config.get<string>('toolchain.version');
   let sbSelectToolchain: vscode.StatusBarItem;
@@ -419,27 +420,14 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
 		if (e.affectsConfiguration('eepl.target.device')) {
-      const devName = config.get<string>('target.device');
-      sbSelectTargetDev.text = devName;
-      config.targetDevice = await toolchain.getTargetWithDevName(devName);
+      if (config.targetDevice != config.get<toolchain.TargetInfo>("target.device")) {
+        toolchain.checkAndSetCurrentTarget(config, sbSelectTargetDev);
+      }
 		}
 
 
     if (e.affectsConfiguration('eepl.toolchain.version')) {
-      //const toolName = config.get<string>('toolchain.version');
-
-      const currentToolchain = await toolchain.getCurrentToolchain();
-
-      if (currentToolchain != undefined && 'label' in currentToolchain) {
-        sbSelectToolchain.text = currentToolchain.label;
-        if (toolchain.LastToolchain != undefined && toolchain.LastToolchain.ver != currentToolchain.ver)
-        {
-          sbSelectToolchain.text += "(old version)";
-        }
-      }
-      else {
-        sbSelectToolchain.text = "Not installed!";
-      }
+      toolchain.checkAndSetCurrentToolchain(config, sbSelectToolchain);
 		}
 
 	}));
@@ -449,24 +437,26 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
   (async () => {
+
     await toolchain.checkToolchain();
     let currentToolchain = await toolchain.getCurrentToolchain();
     //const inCfg = config.get<toolchain.ToolchainInfo>("toolchain.version");
-      if (currentToolchain == undefined || !('ver' in currentToolchain))
-      {
-          currentToolchain = {
-          label: "",
-          file: "",
-          description: "",
-          ver: "0.0.0",
-          url: ""
-        };
-      }
-      else
-      {
-        currentToolchain.ver += ".0";
-      }
-    config.setGlobal("toolchain.version", currentToolchain);
+    //   if (currentToolchain == undefined || !('ver' in currentToolchain))
+    //   {
+    //       currentToolchain = {
+    //       label: "",
+    //       file: "",
+    //       description: "",
+    //       ver: "0.0.0",
+    //       url: ""
+    //     };
+    //   }
+    //   else
+    //   {
+    //     currentToolchain.ver += ".0";
+    //   }
+    // config.setGlobal("toolchain.version", currentToolchain);
+    toolchain.checkAndSetCurrentToolchain(config, sbSelectToolchain);
   })();
 
 
@@ -501,15 +491,15 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
     let pickTargets: any[] = [];
 
-    const prevDev = config.get<string>('target.device');
+    const prevDev = config.targetDevice; //.get<string>('target.device');
 
     const targets = await toolchain.getTargets();
 
     targets.forEach(element => {
-      const isPicked = (prevDev == element.description);
+      const isPicked = (prevDev.description == element.description);
       const pickItem = isPicked ? '$(check)' : ' ';
       const detail = ` ${pickItem}  $(device-mobile) [${element.periphInfo.uiCount} UIs, ${element.periphInfo.relayCount} Relays, ${element.periphInfo.aoCount} AOs, ${element.periphInfo.uartCount} COMs]   $(extensions) framework v${element.frameWorkVerA}.${element.frameWorkVerB}`;
-      pickTargets.push( {label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: element.description } );
+      pickTargets.push( {label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: element.description, _target: element } );
     });
 
     const target = await vscode.window.showQuickPick(
@@ -519,11 +509,11 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
           //   { label: 'M72002', description: 'M72002 medium', devName: 'M72IS20C02D', target: vscode.ConfigurationTarget.Workspace },
           //   { label: 'M72003', description: 'M72003 perfomance', devName: 'M72IS20C03D', target: vscode.ConfigurationTarget.Workspace }
           // ],
-          { placeHolder: 'Select the target device', title: "Target Device" }
+          { placeHolder: 'Select the target Device/Platform', title: "Target Device/Platform" }
     );
 
     if (target) {
-      config.set("target.device", target.description);
+      toolchain.setCurrentTarget(target._target, config, sbSelectTargetDev);
     }
 
   });
@@ -566,6 +556,8 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
       ".eec-tmp"
     );
 
+
+
     await vscode.workspace.fs.readDirectory(tmpDir).then((files) => {
       files.forEach(element => {
         
@@ -578,7 +570,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
         const toolchainInfo: toolchain.ToolchainInfo = {
           label: element[0],
-          file: element[0],
+          file: element[0].substring(0, element[0].lastIndexOf(".zip")),
           description: '',
           ver: 'unknown',
           url: ''

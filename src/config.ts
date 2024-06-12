@@ -21,7 +21,7 @@ export class Config {
     targetDevice: TargetInfo = {
         description: "[Device]",
         devManId: 0,
-        devName: "Device",
+        devName: "Select Target",
         frameWorkVerA: 0,
         frameWorkVerB: 22,
         triplet: "thumbv7m-none-none-eabi",
