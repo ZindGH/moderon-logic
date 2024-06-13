@@ -401,6 +401,8 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
       request.destroy();
     });
 
+
+
     let prevPer = 0;
     while (!isTerminated) {
       await new Promise(f => setTimeout(f, 100));

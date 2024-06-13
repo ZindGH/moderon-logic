@@ -14,11 +14,11 @@ import { isEasyDocument, execute } from "./util";
 
 import * as readline from "readline";
 
-import {EasyConfigurationProvider, runDebug} from "./dbg";
+import { EasyConfigurationProvider, runDebug } from "./dbg";
 
 import * as os from "os";
 
-import {TableEditorProvider } from './ModbusEditor/tableEditor';
+import { TableEditorProvider } from './ModbusEditor/tableEditor';
 
 
 import { URL } from 'url';
@@ -33,7 +33,7 @@ import { EFlasherClient } from './EFlasher/eflasher';
 //import { resolve } from 'path';
 
 
-async function downloadFile0(url: string | URL | https.RequestOptions, targetFile: fs.PathLike, callback: () => void) {  
+async function downloadFile0(url: string | URL | https.RequestOptions, targetFile: fs.PathLike, callback: () => void) {
   return new Promise((resolve, reject) => {
 
 
@@ -56,16 +56,16 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
       // save the file to disk
       const fileWriter = fs
         .createWriteStream(targetFile)
-        // .on('finish', () => {
-        //   //console.log("done");
-        //   callback();
-        //   resolve({});
-        //})
+      // .on('finish', () => {
+      //   //console.log("done");
+      //   callback();
+      //   resolve({});
+      //})
 
       response.on('data', (chunk) => {
-         const buffer = chunk as Buffer;
-         console.log("chunk", chunk);
-       })
+        const buffer = chunk as Buffer;
+        console.log("chunk", chunk);
+      })
       response.pipe(fileWriter);
       //response.on('data')
 
@@ -73,8 +73,8 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
     }).on('error', error => {
       console.log("err");
       reject(error)
-  })
-});
+    })
+  });
 
 }
 
@@ -82,89 +82,89 @@ async function downloadFile0(url: string | URL | https.RequestOptions, targetFil
 
 
 export type Workspace =
-    | { kind: "Empty" }
-    | {
-          kind: "Workspace Folder";
-      }
-    | {
-          kind: "Detached Files";
-          files: vscode.TextDocument[];
-      };
+  | { kind: "Empty" }
+  | {
+    kind: "Workspace Folder";
+  }
+  | {
+    kind: "Detached Files";
+    files: vscode.TextDocument[];
+  };
 
 
 export function fetchWorkspace(): Workspace {
-        const folders = (vscode.workspace.workspaceFolders || []).filter(
-            (folder) => folder.uri.scheme === "file"
-        );
-        const rustDocuments = vscode.workspace.textDocuments.filter((document) =>
-            isEasyDocument(document)
-        );
-    
-        return folders.length === 0
-            ? rustDocuments.length === 0
-                ? { kind: "Empty" }
-                : {
-                      kind: "Detached Files",
-                      files: rustDocuments,
-                  }
-            : { kind: "Workspace Folder" };
-    }
-    
+  const folders = (vscode.workspace.workspaceFolders || []).filter(
+    (folder) => folder.uri.scheme === "file"
+  );
+  const rustDocuments = vscode.workspace.textDocuments.filter((document) =>
+    isEasyDocument(document)
+  );
+
+  return folders.length === 0
+    ? rustDocuments.length === 0
+      ? { kind: "Empty" }
+      : {
+        kind: "Detached Files",
+        files: rustDocuments,
+      }
+    : { kind: "Workspace Folder" };
+}
+
 
 async function checkDepencies() {
-   
-  
+
+
   let extName = "marus25.cortex-debug";
-   //let extName = "vadimcn.vscode-lldb";
-  
-   let debugEngine = vscode.extensions.getExtension(extName);
- 
-   if (!debugEngine) {
-     let buttons = ['Install', 'Not now'];
-     let choice = await vscode.window.showWarningMessage(`Extension '${extName}' is not installed! It is required for debugging.\n Install now?`, ...buttons);
-     if (choice === buttons[0]) {
+  //let extName = "vadimcn.vscode-lldb";
+
+  let debugEngine = vscode.extensions.getExtension(extName);
+
+  if (!debugEngine) {
+    let buttons = ['Install', 'Not now'];
+    let choice = await vscode.window.showWarningMessage(`Extension '${extName}' is not installed! It is required for debugging.\n Install now?`, ...buttons);
+    if (choice === buttons[0]) {
       await vscode.commands.executeCommand('workbench.extensions.installExtension', extName).then(() => {
-         vscode.window.showInformationMessage(`Extension '${extName}' has been successfully installed`);
+        vscode.window.showInformationMessage(`Extension '${extName}' has been successfully installed`);
       }, () => {
         vscode.window.showErrorMessage(`Extension '${extName}' has not been installed :(`);
         return;
-      } );  
-     } else if (choice == buttons[1]) {
-        vscode.window.showErrorMessage(`Extension '${extName}' has not been installed.\n Debugging is unreached :(`);
-        return;
-     } 
-   }
-
-   
+      });
+    } else if (choice == buttons[1]) {
+      vscode.window.showErrorMessage(`Extension '${extName}' has not been installed.\n Debugging is unreached :(`);
+      return;
+    }
+  }
 
 
-//    const definition: tasks.EasyTaskDefinition = {
-//     type: tasks.TASK_TYPE,
-//     command: "", // run, test, etc...
-//     args: [],
-//     cwd: vscode.workspace.getWorkspaceFolder ,
-//     env: prepareEnv(runnable, config.runnableEnv),
-//     overrideCargo: runnable.args.overrideCargo,
-// };
 
-//    const target = vscode.workspace.workspaceFolders![0]; // safe, see main activate()
-//     const cargoTask = await tasks.buildCargoTask(
-//         target,
-//         definition,
-//         runnable.label,
-//         args,
-//         config.cargoRunner,
-//         true
-//     );
 
-//     cargoTask.presentationOptions.clear = true;
-//     // Sadly, this doesn't prevent focus stealing if the terminal is currently
-//     // hidden, and will become revealed due to task exucution.
-//     cargoTask.presentationOptions.focus = false;
+  //    const definition: tasks.EasyTaskDefinition = {
+  //     type: tasks.TASK_TYPE,
+  //     command: "", // run, test, etc...
+  //     args: [],
+  //     cwd: vscode.workspace.getWorkspaceFolder ,
+  //     env: prepareEnv(runnable, config.runnableEnv),
+  //     overrideCargo: runnable.args.overrideCargo,
+  // };
+
+  //    const target = vscode.workspace.workspaceFolders![0]; // safe, see main activate()
+  //     const cargoTask = await tasks.buildCargoTask(
+  //         target,
+  //         definition,
+  //         runnable.label,
+  //         args,
+  //         config.cargoRunner,
+  //         true
+  //     );
+
+  //     cargoTask.presentationOptions.clear = true;
+  //     // Sadly, this doesn't prevent focus stealing if the terminal is currently
+  //     // hidden, and will become revealed due to task exucution.
+  //     cargoTask.presentationOptions.focus = false;
 
 
   const path = await toolchain.getPathForExecutable("st-util");
-  
+
   if (!path) {
     vscode.window.showErrorMessage("Can't find path to 'st-util'");
     return;
@@ -176,8 +176,8 @@ async function checkDepencies() {
 
   const exec = new Promise((resolve, reject) => {
     const cargo = cp.spawn(path, [], {
-        stdio: ["ignore", "pipe", "pipe"],
- //       cwd: workspace.name
+      stdio: ["ignore", "pipe", "pipe"],
+      //       cwd: workspace.name
     });
 
     cargo.on("error", (err) => {
@@ -191,23 +191,23 @@ async function checkDepencies() {
     const rl = readline.createInterface({ input: cargo.stdout });
     rl.on("line", (line) => {
       console.log(line);
-        //const message = JSON.parse(line);
-        //onStdoutJson(message);
+      //const message = JSON.parse(line);
+      //onStdoutJson(message);
     });
 
     cargo.on("exit", (exitCode, _) => {
-        if (exitCode === 0) { 
-          resolve(exitCode);
-        }
-        else {
-          reject(new Error(`exit code: ${exitCode}.`));
-        }
+      if (exitCode === 0) {
+        resolve(exitCode);
+      }
+      else {
+        reject(new Error(`exit code: ${exitCode}.`));
+      }
     });
-});
+  });
 
   await new Promise(f => setTimeout(f, 1000));
 
-  
+
   // const exec =  execute(path, {}).then(() => {
   //   vscode.window.showInformationMessage("Success");
   // }, () => {
@@ -215,9 +215,9 @@ async function checkDepencies() {
   // }); //cp.exec(path);
 
 
-   debugEngine = vscode.extensions.getExtension(extName);
+  debugEngine = vscode.extensions.getExtension(extName);
 
-   let debugConfig: vscode.DebugConfiguration = {
+  let debugConfig: vscode.DebugConfiguration = {
     type: "cortex-debug",
     request: "attach",
     name: "Debug on PLC",
@@ -231,14 +231,20 @@ async function checkDepencies() {
     gdbTarget: "localhost:4242",
     showDevDebugOutput: "raw"
     //preLaunchTask: "st-util"
-   };
-               
+  };
 
-   vscode.debug.startDebugging(undefined, debugConfig);
- 
+
+  vscode.debug.startDebugging(undefined, debugConfig);
+
 }
 
 
+let EEPL_stackOfCommands: string[] = []
+
+
+
+let EEPL_isBuildFailed = true;
+let EEPL_isReqRebuild = true;
 
 
 export function activate(context: vscode.ExtensionContext) {
@@ -249,16 +255,17 @@ export function activate(context: vscode.ExtensionContext) {
   // (async () => {
   //   EFlasherClient.getPortList();
   // })();
-  
+
 
   let extation = vscode.extensions.getExtension("YouTooLife.vscode-eemblang");
-  
+
   console.log(extation);
-  
+
   let config = new Config(context);
+  let eflashClient = new EFlasherClient(config, context);
 
 
-  
+
 
   // (async () => {
   //   const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
@@ -275,51 +282,51 @@ export function activate(context: vscode.ExtensionContext) {
 
   //   await vscode.tasks.executeTask(task);
   // })();
-  
-  
+
+
 
   //checkToolchain();
   //installToolchain();
 
 
-//   vscode.window.withProgress({
-//     location: vscode.ProgressLocation.Notification,
-//     title: "Downloading...",
-//     cancellable: true
-// }, async (progress, token) => {
-//     token.onCancellationRequested(() => {
-//         console.log("User canceled the long running operation");
-//     });
-//     progress.report({message: "Download...", increment: 0});
+  //   vscode.window.withProgress({
+  //     location: vscode.ProgressLocation.Notification,
+  //     title: "Downloading...",
+  //     cancellable: true
+  // }, async (progress, token) => {
+  //     token.onCancellationRequested(() => {
+  //         console.log("User canceled the long running operation");
+  //     });
+  //     progress.report({message: "Download...", increment: 0});
 
-//     for (var _i = 0; _i < 100; _i++) {
-//       await new Promise(f => setTimeout(f, 100));
-//       progress.report({message: "Download...()", increment: _i});
-//     }
+  //     for (var _i = 0; _i < 100; _i++) {
+  //       await new Promise(f => setTimeout(f, 100));
+  //       progress.report({message: "Download...()", increment: _i});
+  //     }
 
-//   });
- 
+  //   });
 
-context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.progress', async config => {
-  vscode.window.withProgress({
-    location: vscode.ProgressLocation.Notification,
-    title: "Downloading...",
-    cancellable: true
-}, async (progress, token) => {
-    token.onCancellationRequested(() => {
+
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.progress', async config => {
+    vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: "Downloading...",
+      cancellable: true
+    }, async (progress, token) => {
+      token.onCancellationRequested(() => {
         console.log("User canceled the long running operation");
+      });
+      progress.report({ message: "Download...", increment: 0 });
+
+      for (var _i = 0; _i < 100; _i++) {
+        await new Promise(f => setTimeout(f, 100));
+        progress.report({ message: "Download...", increment: 1 });
+      }
+
     });
-    progress.report({message: "Download...", increment: 0});
+  })
 
-    for (var _i = 0; _i < 100; _i++) {
-      await new Promise(f => setTimeout(f, 100));
-      progress.report({message: "Download...", increment: 1});
-    }
-
-  });
-})
-
-);
+  );
 
 
 
@@ -328,16 +335,14 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
     //checkDepencies();
   });
 
-  
+
   vscode.tasks.onDidEndTaskProcess(async (e) => {
 
     console.log(e.execution.task.name);
     const tsk: tasks.EasyTaskDefinition = (e.execution.task.definition as tasks.EasyTaskDefinition);
 
-    if (tsk as tasks.EasyTaskDefinition)
-    {
-      if (tsk.command == "build" && e.exitCode == 0)
-      {
+    if (tsk as tasks.EasyTaskDefinition) {
+      if (tsk.command == "build" && e.exitCode == 0) {
         const task = await createTask(2, config);
         const exec = await vscode.tasks.executeTask(task);
       }
@@ -345,41 +350,97 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
         const task = await createTask(3, config);
         const exec = await vscode.tasks.executeTask(task);
       }
-    }
+      else if (tsk.command == "ebuild" && e.exitCode == 0) {
+        EEPL_isBuildFailed = false;
+        const cmd = EEPL_stackOfCommands.pop();
+        if (cmd) {
+          vscode.commands.executeCommand(cmd);
+        }
+      } else if (e.exitCode != 0) {
+        if (EEPL_stackOfCommands.length) {
+          EEPL_stackOfCommands = [];
+        }
+      }
+    } 
 
+  });
+
+  vscode.workspace.onDidSaveTextDocument((e) => {
+    EEPL_isReqRebuild = true;
+  });
+
+  vscode.workspace.onDidSaveNotebookDocument((e) => {
+    EEPL_isReqRebuild = true;
+  });
+
+  vscode.workspace.onDidCreateFiles((e) => {
+    EEPL_isReqRebuild = true;
+  });
+
+  vscode.workspace.onDidDeleteFiles((e) => {
+    EEPL_isReqRebuild = true;
+  });
+
+  vscode.workspace.onDidRenameFiles((e) => {
+    EEPL_isReqRebuild = true;
   });
 
   context.subscriptions.push(activateTaskProvider(config));
 
-  context.subscriptions.push(vscode.commands.registerCommand('extension.vscode-eemblang.getProgramName', () => {
-    return vscode.window.showInputBox({
-      placeHolder: 'Please enter the name of a source file in the workspace folder',
-      value: 'source.es'
-    });
-  }));
+  // context.subscriptions.push(vscode.commands.registerCommand('extension.vscode-eemblang.getProgramName', () => {
+  //   return vscode.window.showInputBox({
+  //     placeHolder: 'Please enter the name of a source file in the workspace folder',
+  //     value: 'source.es'
+  //   });
+  // }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.compileProject', async () => {
-    const task = await createTask(0, config).catch(() => {});
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.compileProject', async () => {
+
+
+    EEPL_isBuildFailed = true;
+
+    for (const file of vscode.workspace.textDocuments) {
+      if (file.isDirty) {
+        console.log("changes: ", file.fileName, file.version);
+        await file.save();
+      } else {
+        console.log("no changes: ", file.fileName, file.version);
+      }
+    }
+
+    EEPL_isReqRebuild = false;
+
+    const task = await createTask(0, config).catch(() => { });
     if (!task) {
       return;
     }
     const exec = await vscode.tasks.executeTask(task);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.runSimulator', async () =>  {
-    const task = await createTask(1, config).catch(() => {});
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.runSimulator', async () => {
+
+    for (const file of vscode.workspace.textDocuments) {
+      if (file.isDirty) {
+        console.log("changes: ", file.fileName, file.version);
+        await file.save();
+      } else {
+        console.log("no changes: ", file.fileName, file.version);
+      }
+    }
+
+    const task = await createTask(1, config).catch(() => { });
     if (!task) {
       return;
     }
     const exec = await vscode.tasks.executeTask(task);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flash', config => {
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.flash', config => {
     return vscode.window.showInformationMessage("Flash", "Ok");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flush', async () => {
-    const task = await createTask(4, config).catch(() => {});
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.openFlasher', async () => {
+    const task = await createTask(4, config).catch(() => { });
     if (!task) {
       return;
     }
@@ -387,17 +448,34 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
     //return vscode.window.showInformationMessage("Flush", "Ok");
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.attach', () => {
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.attach', () => {
     runDebug(config);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.flushDbg', () => {
-    var eflashClient = new EFlasherClient(context);
-    eflashClient.eflashRun();
-    //return vscode.window.showInformationMessage("flushDbg", "Ok");
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.buildAndFlash', () => {
+
+    let runRebuild = false;
+    for (const file of vscode.workspace.textDocuments) {
+      if (file.isDirty) {
+        //console.log("changes: ", file.fileName, file.version);
+        runRebuild = true;
+        //file.save();
+      } else {
+        console.log("no changes: ", file.fileName, file.version);
+      }
+    }
+
+    if (EEPL_isReqRebuild || EEPL_isBuildFailed || runRebuild) {
+      EEPL_stackOfCommands.push('eepl.command.buildAndFlash');
+      vscode.commands.executeCommand('eepl.command.compileProject');
+      return;
+    }
+
+    eflashClient.flash();
+
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.settings', () => {
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.settings', () => {
     return vscode.window.showInformationMessage("settings", "Ok");
   }));
 
@@ -408,30 +486,30 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   //const devName: string = vscode.workspace.getConfiguration("eepl").get('target.device');
   let sbSelectTargetDev: vscode.StatusBarItem;
   sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	sbSelectTargetDev.command = 'eepl.command.setTargetDevice';
-	context.subscriptions.push(sbSelectTargetDev);
+  sbSelectTargetDev.command = 'eepl.command.setTargetDevice';
+  context.subscriptions.push(sbSelectTargetDev);
   sbSelectTargetDev.text = "Select Target";
   sbSelectTargetDev.tooltip = "Select target Device/Platform";
-	sbSelectTargetDev.show();
+  sbSelectTargetDev.show();
   toolchain.checkAndSetCurrentTarget(config, sbSelectTargetDev);
 
   //const currentToolchain = await toolchain.getCurrentToolchain(); //config.get<string>('toolchain.version');
   let sbSelectToolchain: vscode.StatusBarItem;
   sbSelectToolchain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	sbSelectToolchain.command = 'eepl.command.setToolchain';
-	context.subscriptions.push(sbSelectToolchain);
+  sbSelectToolchain.command = 'eepl.command.setToolchain';
+  context.subscriptions.push(sbSelectToolchain);
   sbSelectToolchain.text = "Select toolchain";
   sbSelectToolchain.tooltip = "Select toolchain";
-	sbSelectToolchain.show();
+  sbSelectToolchain.show();
 
 
   // let sbClearCache: vscode.StatusBarItem;
   // sbClearCache = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	// sbClearCache.command = 'eepl.command.clearCache';
-	// context.subscriptions.push(sbSelectToolchain);
+  // sbClearCache.command = 'eepl.command.clearCache';
+  // context.subscriptions.push(sbSelectToolchain);
   // sbClearCache.text = "$(terminal-kill)";
   // sbClearCache.tooltip = "Clear cache";
-	// sbClearCache.show();
+  // sbClearCache.show();
 
 
 
@@ -440,18 +518,20 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async e => {
 
 
-		if (e.affectsConfiguration('eepl.target.device')) {
+    if (e.affectsConfiguration('eepl.target.device')) {
       if (config.targetDevice != config.get<toolchain.TargetInfo>("target.device")) {
         toolchain.checkAndSetCurrentTarget(config, sbSelectTargetDev);
       }
-		}
+    }
 
 
     if (e.affectsConfiguration('eepl.toolchain.version')) {
       toolchain.checkAndSetCurrentToolchain(config, sbSelectToolchain);
-		}
+    }
 
-	}));
+    EEPL_isReqRebuild = true;
+
+  }));
 
 
 
@@ -482,7 +562,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
 
-  
+
 
   // (async () => {
   //   await toolchain.checkToolchain();
@@ -520,17 +600,17 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
       const isPicked = (prevDev.description == element.description);
       const pickItem = isPicked ? '$(check)' : ' ';
       const detail = ` ${pickItem}  $(device-mobile) [${element.periphInfo.uiCount} UIs, ${element.periphInfo.relayCount} Relays, ${element.periphInfo.aoCount} AOs, ${element.periphInfo.uartCount} COMs]   $(extensions) framework v${element.frameWorkVerA}.${element.frameWorkVerB}`;
-      pickTargets.push( {label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: element.description, _target: element } );
+      pickTargets.push({ label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: element.description, _target: element });
     });
 
     const target = await vscode.window.showQuickPick(
-        pickTargets,
-          // [
-          //   { label: 'M72001', description: 'M72001 basic', devName: 'M72IS20C01D', target: vscode.ConfigurationTarget.Workspace },
-          //   { label: 'M72002', description: 'M72002 medium', devName: 'M72IS20C02D', target: vscode.ConfigurationTarget.Workspace },
-          //   { label: 'M72003', description: 'M72003 perfomance', devName: 'M72IS20C03D', target: vscode.ConfigurationTarget.Workspace }
-          // ],
-          { placeHolder: 'Select the target Device/Platform', title: "Target Device/Platform" }
+      pickTargets,
+      // [
+      //   { label: 'M72001', description: 'M72001 basic', devName: 'M72IS20C01D', target: vscode.ConfigurationTarget.Workspace },
+      //   { label: 'M72002', description: 'M72002 medium', devName: 'M72IS20C02D', target: vscode.ConfigurationTarget.Workspace },
+      //   { label: 'M72003', description: 'M72003 perfomance', devName: 'M72IS20C03D', target: vscode.ConfigurationTarget.Workspace }
+      // ],
+      { placeHolder: 'Select the target Device/Platform', title: "Target Device/Platform" }
     );
 
     if (target) {
@@ -549,12 +629,12 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
     const toolchains = await toolchain.getToolchains();
 
-    if (toolchains != undefined) {    
-  
+    if (toolchains != undefined) {
+
       for (var toolchainInfo of toolchains) {
 
-        const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-    
+        const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+
         const tmpFilePath = vscode.Uri.joinPath(
           vscode.Uri.file(homeDir),
           ".eec-tmp", `${toolchainInfo.file}.zip`
@@ -565,62 +645,62 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
         const isLocal = (await toolchain.isFileAtUri(tmpFilePath));
         const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
         const detail = ` ${pickItem}  $(info) [v${toolchainInfo.ver}]  ${localItem}`;
-        pickTargets.push( { label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo } );
+        pickTargets.push({ label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo });
+      }
+
+    } else {
+
+      const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+
+      const tmpDir = vscode.Uri.joinPath(
+        vscode.Uri.file(homeDir),
+        ".eec-tmp"
+      );
+
+
+
+      await vscode.workspace.fs.readDirectory(tmpDir).then((files) => {
+        files.forEach(element => {
+
+          console.log("file: ", element[0]);
+
+          if (element[1] != vscode.FileType.File || element[0].lastIndexOf(".json") == -1 || element[0].lastIndexOf("ToolchainInfo.") == -1) { //element[0].split('.').length < 3) {
+            //console.log("is not toolchain");
+            return;
+          }
+
+          // const toolchainInfo: toolchain.ToolchainInfo = {
+          //   label: element[0],
+          //   file: element[0].substring(0, element[0].lastIndexOf(".zip")),
+          //   description: '',
+          //   ver: 'unknown',
+          //   url: ''
+          // };
+
+          const rowFile = fs.readFileSync(vscode.Uri.joinPath(tmpDir, element[0]).fsPath).toString();
+          const toolchainInfo: toolchain.ToolchainInfo = JSON.parse(rowFile);
+
+          const isPicked = (currentToolchain ? currentToolchain.label == toolchainInfo.label : false);
+          const pickItem = isPicked ? '$(check)' : ' ';
+          //const isLocal = true;
+          const localItem = '$(file-zip)';// isLocal ? '$(folder-active)' : '$(cloud-download)';
+          const detail = ` ${pickItem}  $(info) [v${toolchainInfo.ver}]  ${localItem}`;
+          pickTargets.push({ label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo });
+        });
+      }, () => {
+        console.log("Can't find toolchains");
+      });
+
     }
 
-  } else {
-
-    const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir(); 
-
-    const tmpDir = vscode.Uri.joinPath(
-      vscode.Uri.file(homeDir),
-      ".eec-tmp"
-    );
-
-
-
-    await vscode.workspace.fs.readDirectory(tmpDir).then((files) => {
-      files.forEach(element => {
-        
-        console.log("file: ", element[0]);
-        
-        if ( element[1] !=  vscode.FileType.File ||  element[0].lastIndexOf(".json")  == -1 || element[0].lastIndexOf("ToolchainInfo.") == -1) { //element[0].split('.').length < 3) {
-          //console.log("is not toolchain");
-          return;
-        }
-
-        // const toolchainInfo: toolchain.ToolchainInfo = {
-        //   label: element[0],
-        //   file: element[0].substring(0, element[0].lastIndexOf(".zip")),
-        //   description: '',
-        //   ver: 'unknown',
-        //   url: ''
-        // };
-
-        const rowFile = fs.readFileSync(vscode.Uri.joinPath(tmpDir, element[0]).fsPath).toString();
-        const toolchainInfo: toolchain.ToolchainInfo = JSON.parse(rowFile);
-
-        const isPicked = (currentToolchain ? currentToolchain.label == toolchainInfo.label : false);
-        const pickItem = isPicked ? '$(check)' : ' ';
-        const isLocal = true;
-        const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
-        const detail = ` ${pickItem}  $(info) [v${toolchainInfo.ver}]  ${localItem}`;
-        pickTargets.push( { label: toolchainInfo.label, detail: detail, picked: isPicked, description: toolchainInfo.description, toolchain: toolchainInfo } );
-      }); 
-    }, () => {
-      console.log("Can't find toolchains");
-    });
-      
-  }
-
     const target = await vscode.window.showQuickPick(
-        pickTargets,
-          // [
-          //   { label: 'M72001', description: 'M72001 basic', devName: 'M72IS20C01D', target: vscode.ConfigurationTarget.Workspace },
-          //   { label: 'M72002', description: 'M72002 medium', devName: 'M72IS20C02D', target: vscode.ConfigurationTarget.Workspace },
-          //   { label: 'M72003', description: 'M72003 perfomance', devName: 'M72IS20C03D', target: vscode.ConfigurationTarget.Workspace }
-          // ],
-          { placeHolder: 'Select toolchain version', title: "Toolchain" }
+      pickTargets,
+      // [
+      //   { label: 'M72001', description: 'M72001 basic', devName: 'M72IS20C01D', target: vscode.ConfigurationTarget.Workspace },
+      //   { label: 'M72002', description: 'M72002 medium', devName: 'M72IS20C02D', target: vscode.ConfigurationTarget.Workspace },
+      //   { label: 'M72003', description: 'M72003 perfomance', devName: 'M72IS20C03D', target: vscode.ConfigurationTarget.Workspace }
+      // ],
+      { placeHolder: 'Select toolchain version', title: "Toolchain" }
     );
 
     if (target) {
@@ -635,22 +715,22 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
 
-  
+
 
   // let myStatusBarItem: vscode.StatusBarItem;
   // myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-	// myStatusBarItem.command = 'vscode-eemblang.runSimulator';
-	// context.subscriptions.push(myStatusBarItem);
+  // myStatusBarItem.command = 'vscode-eemblang.runSimulator';
+  // context.subscriptions.push(myStatusBarItem);
   // myStatusBarItem.text = `$(run)`;
   // myStatusBarItem.tooltip = "Run Simulator";
-	// myStatusBarItem.show();
+  // myStatusBarItem.show();
 
 
-  vscode.commands.registerCommand('eepl.command.createNewProject', async () => { 
-      createNewProject();
+  vscode.commands.registerCommand('eepl.command.createNewProject', async () => {
+    createNewProject();
   });
 
-  vscode.commands.registerCommand('eepl.command.createProjectFromExample', async () => { 
+  vscode.commands.registerCommand('eepl.command.createProjectFromExample', async () => {
     selectExamples();
   });
 
@@ -662,7 +742,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
 
 
   const provider = new EasyConfigurationProvider();
-	context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('eembdbg', provider));
+  context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('eembdbg', provider));
 
 
   context.subscriptions.push(TableEditorProvider.register(context));
@@ -670,8 +750,8 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   // let factory = new InlineDebugAdapterFactory();
   // context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('eembdbg', factory));
   // if ('dispose' in factory) {
-	// 	context.subscriptions.push(factory);
-	// }
+  // 	context.subscriptions.push(factory);
+  // }
 
   //   console.log("HW");
 
@@ -721,7 +801,7 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   //   console.log(os.totalmem());
 
 
-    
+
 
   // //writeFile('./file.json', content);
 
@@ -731,4 +811,4 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
   //  downloadFile0("https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif", `${valPath}/giphy.gif`);
 
 }
- 
+

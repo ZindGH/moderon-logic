@@ -178,9 +178,37 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
     const devName = config.targetDevice.devName;
     const cwd = "${cwd}";
 
+    const presets = config.get<string>("build.presets");
+
+    let addArgs: string[] = [];
+
+    if (presets == "Debug") {
+        addArgs = ["-g", "-O0"];
+    } else if (presets == "OpDebug") {
+        addArgs = ["-g", "-O3"];
+    } else if (presets == "Release") {
+        addArgs = ["-O3", "-drtc"];
+    } else if (presets == "Safe Release") {
+        addArgs = ["-O3"];
+    } else if (presets == "Custom") {
+        const opLevel = config.get<string>("build.optimization");
+        const isGenDbgInfo = config.get<boolean>("build.generateDbgInfo");
+        const isRunTimeChecks = config.get<boolean>("build.runtimeChecks");
+        addArgs = [opLevel];
+        if (isGenDbgInfo) {
+            addArgs.push("-g");
+        }
+        if (!isRunTimeChecks) {
+            addArgs.push("-drtc");
+        }
+    }
+
+
+    const inputSourceFile = config.get<string>("build.inputFile");
+
     const defs = [
-        { command: "build", name: "Build for Device", args: ["-target", `${targetFile}`, "-triplet", config.targetDevice.triplet, "-emit-llvm", "-g", "-O3"], group: vscode.TaskGroup.Build },
-        { command: "simulate", name: "Run Simulator", args: ["-target", `${targetFile}`, "-jit", "-S", "-emit-llvm", "-g", "-O3"], group: undefined },
+        { command: "build", name: "Build for Device", args: ["-target", `${targetFile}`, "-triplet", config.targetDevice.triplet, "-S", "-emit-llvm"].concat(addArgs), group: vscode.TaskGroup.Build },
+        { command: "simulate", name: "Run Simulator", args: ["-target", `${targetFile}`, "-jit", "-S", "-emit-llvm"].concat(addArgs), group: undefined },
         { command: "link", name: "linker", args: [
             `${cwd}/out/${devName}/output.o`,
             // `${libPath}targets/v7-m/dl7M_tln.a`,
@@ -246,7 +274,7 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
 
 
     const args0 = (idx == 0 || idx == 1) ? 
-        [`${workspaceTarget!.uri.fsPath}/PackageInfo.es`].concat(def.args).concat(["-o", `${workspaceTarget!.uri.fsPath}/out/${devName}/output`]) : def.args;
+        [`${workspaceTarget!.uri.fsPath}/${inputSourceFile}`].concat(def.args).concat(["-o", `${workspaceTarget!.uri.fsPath}/out/${devName}/output`]) : def.args;
 
     const vscodeTask = await buildEasyTask2(
         //workspaceTarget,

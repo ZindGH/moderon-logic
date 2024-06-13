@@ -2,7 +2,7 @@
     "name": "vscode-eemblang",
     "displayName": "Moderon Logic",
     "description": "EEmbLang (EEPL) Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
-    "version": "0.8.0",
+    "version": "0.8.8",
     "icon": "icon.png",
     "repository": {
         "url": "https://github.com/YouTooLife/eemblang.git",
@@ -32,9 +32,6 @@
     "activationEvents": [
         "onDebug",
         "onLanguage:eepl",
-        "onCustomEditor:vscode-eemblang.tableEditor",
-        "onCommand:vscode-eemblang.modbus.locals.new",
-        "onCommand:extension.vscode-eemblang.compileProject",
         "onCommand:eepl.command.createNewProject",
         "onCommand:eepl.command.createProjectFromExample"
     ],
@@ -301,79 +298,76 @@
                 "title": "EEPL: create project from example"
             },
             {
-                "command": "vscode-eemblang.progress",
+                "command": "eepl.command.progress",
                 "title": "example"
             },
             {
-                "command": "extension.vscode-eemblang.getProgramName",
-                "title": "Get prog name"
-            },
-            {
-                "command": "vscode-eemblang.modbus.locals.new",
-                "title": "Create new Local Modbus table",
-                "category": "Modbus table"
-            },
-            {
-                "command": "vscode-eemblang.compileProject",
+                "command": "eepl.command.compileProject",
                 "title": "Compile project",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": {
                     "dark": "res/dark/build-icon.svg",
                     "light": "res/light/build-icon.svg"
                 }
             },
             {
-                "command": "vscode-eemblang.runSimulator",
+                "command": "eepl.command.runSimulator",
                 "title": "Run Simulator",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": "$(vm-running)"
             },
             {
-                "command": "vscode-eemblang.flash",
+                "command": "eepl.command.flash",
                 "title": "Flash to device",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": "$(symbol-event)"
             },
             {
-                "command": "vscode-eemblang.flushDbg",
-                "title": "Flash to device and start Debug",
-                "category": "vscode-eemblang",
+                "command": "eepl.command.buildAndFlash",
+                "title": "Build and Flash to Target",
+                "category": "vscode-eepl",
+                "icon": "$(run-below)"
+            },
+            {
+                "command": "eepl.command.buildAndDebug",
+                "title": "Build, Flash and start Debug",
+                "category": "vscode-eepl",
                 "icon": "$(debug-alt)"
             },
             {
-                "command": "vscode-eemblang.attach",
+                "command": "eepl.command.attach",
                 "title": "Attach to device",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": "$(debug)"
             },
             {
-                "command": "vscode-eemblang.flush",
-                "title": "Flash to device",
-                "category": "vscode-eemblang",
+                "command": "eepl.command.openFlasher",
+                "title": "Open EFlasher",
+                "category": "vscode-eepl",
                 "icon": "$(symbol-event)"
             },
             {
-                "command": "vscode-eemblang.settings",
+                "command": "eepl.command.settings",
                 "title": "Project settings",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": "$(settings)"
             },
             {
                 "command": "eepl.command.setTargetDevice",
                 "title": "Set target device",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": "$(settings)"
             },
             {
                 "command": "eepl.command.setToolchain",
                 "title": "Set Toolchain",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": "$(settings)"
             },
             {
                 "command": "eepl.command.clearCache",
                 "title": "Clear artifacts Cache",
-                "category": "vscode-eemblang",
+                "category": "vscode-eepl",
                 "icon": "$(settings)"
             }
         ],
@@ -499,6 +493,11 @@
                             "User defined optimization level, on/off generate debug information, on/off Runtime checks." 
                         ],
                         "description": "Presets for build configuration."
+                    },
+                    "eepl.build.inputFile": {
+                        "type": "string",
+                        "default": "PackageInfo.es",
+                        "markdownDescription": "Input source file."
                     }
                 }
             }
@@ -507,37 +506,38 @@
             "editor/title": [
                 {
                     "when": "resourceLangId == eepl",
-                    "command": "vscode-eemblang.runSimulator",
+                    "command": "eepl.command.runSimulator",
                     "group": "navigation@2"
                 },
                 {
                     "when": "resourceLangId == eepl",
-                    "command": "vscode-eemblang.compileProject",
-                    "group": "navigation@1"
-                },
-                {
-                    "when": "resourceLangId == eepl",
-                    "command": "vscode-eemblang.flush",
+                    "command": "eepl.command.compileProject",
                     "group": "navigation@3"
                 },
                 {
                     "when": "resourceLangId == eepl",
-                    "command": "vscode-eemblang.flushDbg",
-                    "group": "navigation@0"
-                },
-                {
-                    "when": "resourceLangId == eepl",
-                    "command": "vscode-eemblang.attach",
+                    "command": "eepl.command.openFlasher",
                     "group": "navigation@4"
                 },
                 {
                     "when": "resourceLangId == eepl",
-                    "command": "vscode-eemblang.flash"
+                    "command": "eepl.command.buildAndFlash",
+                    "group": "navigation@0"
                 },
                 {
                     "when": "resourceLangId == eepl",
-                    "command": "vscode-eemblang.settings",
+                    "command": "eepl.command.buildAndDebug",
+                    "group": "navigation@1"
+                },
+                {
+                    "when": "resourceLangId == eepl",
+                    "command": "eepl.command.attach",
                     "group": "navigation@5"
+                },
+                {
+                    "when": "eepl.command == eepl",
+                    "command": "eepl.command.settings",
+                    "group": "navigation@6"
                 }
             ]
         }
