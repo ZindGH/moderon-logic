@@ -441,7 +441,7 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
     }
     const toolchainTmpInfoFile = vscode.Uri.joinPath(
       vscode.Uri.file(homeDir),
-      ".eec-tmp", `toolchainInfo.${toolchainInfo.file}.json`
+      ".eec-tmp", `ToolchainInfo.${toolchainInfo.file}.json`
     );
     fs.copyFileSync(toolchainInfoFile.fsPath, toolchainTmpInfoFile.fsPath);
     const currentToolchain = await getCurrentToolchain();
@@ -587,7 +587,7 @@ export async function setCurrentTarget(target: TargetInfo, config: Config, sbSel
 
 export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolchain: vscode.StatusBarItem) {
   
-  const cfgToolchain = config.get<ToolchainInfo>('toolchain.version');
+  //const cfgToolchain = config.get<ToolchainInfo>('toolchain.version');
 
   const currentToolchain = await getCurrentToolchain();
 

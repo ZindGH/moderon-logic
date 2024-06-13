@@ -5,7 +5,7 @@ import * as os from "os";
 import { log } from "./util";
 
 export const TASK_TYPE = "eec";
-export const TASK_SOURCE = "eemblang";
+export const TASK_SOURCE = "eepl";
 
 import * as path from "path";
 import { fstat } from "fs";
@@ -81,7 +81,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
                 {
                     args0 = [`${workspaceTarget.uri.fsPath}/PackageInfo.es`].concat(def.args);
                 }
-                const vscodeTask = await buildEasyTask(
+                const vscodeTask = await buildEasyTask2(
                 workspaceTarget,
                 { type: TASK_TYPE, command: def.command, args: args0, envCfg: this.config },
                 def.name,
@@ -116,7 +116,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
         const definition = task.definition as EasyTaskDefinition;
 
         if ( definition.type === TASK_TYPE && definition.command ) {
-            return await buildEasyTask(
+            return await buildEasyTask2(
                 task.scope,
                 definition,
                 task.name,
@@ -245,10 +245,12 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
     const def = defs[idx];
 
 
-    const args0 = (idx == 0 || idx == 1) ? [`${workspaceTarget!.uri.fsPath}/PackageInfo.es`].concat(def.args) : def.args;
+    const args0 = (idx == 0 || idx == 1) ? 
+        [`${workspaceTarget!.uri.fsPath}/PackageInfo.es`].concat(def.args).concat(["-o", `${workspaceTarget!.uri.fsPath}/out/${devName}/output`]) : def.args;
 
-    const vscodeTask = await buildEasyTask(
-        workspaceTarget,
+    const vscodeTask = await buildEasyTask2(
+        //workspaceTarget,
+        vscode.TaskScope.Workspace,
         { type: TASK_TYPE, command: def.command, args: args0, envCfg: config },
         def.name,
         args0,
@@ -261,111 +263,161 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
 }
 
 
-
-export async function buildEasyTask(
+export async function buildEasyTask2(
     scope: vscode.WorkspaceFolder | vscode.TaskScope | undefined,
     definition: EasyTaskDefinition,
     name: string,
     args: string[],
     config: Config
 ): Promise<vscode.Task> {
-    let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
 
-    //if ( task.group === vscode.TaskGroup.Build ) {
-    if ( definition.command == "build" ) {
-        for (const file of vscode.workspace.textDocuments) {
-            if (file.isDirty) {
-                console.log("changes: ", file.fileName, file.version);
-                file.save();
-            } else {
-                console.log("no changes: ", file.fileName, file.version);
-            }
-        }
-    }
-
-console.log( "command: ", definition.command );
-
-    const devName = definition.command == "simulate" ? "Simulator" : config.targetDevice.devName;
-
-    if ( definition.command == "link"  || definition.command == "ebuild" || definition.command == "flaher" )
-    {
-        if ( !exec ) {
-            // Check whether we must use a user-defined substitute for cargo.
-            // Split on spaces to allow overrides like "wrapper cargo".
-            const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
-
-            var easyPath  = await toolchain.linkerPath();
-            
-            if ( definition.command == "ebuild" )
-            {
-                easyPath = await toolchain.ebuildPath();
-            }
-            else if ( definition.command == "flaher" )
-            {
-                easyPath = await toolchain.flasherPath();
-            }
-
-            const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
     
-            const fullCommand = [...easyCommand, ...args];
-    
-            exec = new vscode.ProcessExecution( fullCommand[0], fullCommand.slice(1), definition );
-        }
-    }
-    else
-    {
-    if ( !exec ) {
-        // Check whether we must use a user-defined substitute for cargo.
-        // Split on spaces to allow overrides like "wrapper cargo".
-        const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
-        const easyPath = await toolchain.easyPath();
-        const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
 
-        const index = args.indexOf("-o", 0);
-        if (index == -1) {
-            let uri = vscode.Uri.file(args[0]);
-            let path = "";
-            try {
-                let stat = (await vscode.workspace.fs.stat(uri));
-                if (stat.type == vscode.FileType.File) {
-                    path = posixPath.dirname(uri.path);
-                    path = path.concat(`/out/${devName}/output`);
-                    if (os.type() === "Windows_NT" && path[0] == '/') {
-                        path = path.slice(1);
-                    }
-                }
-                else {
-                    path = args[0].concat(`/out/${devName}/output`);
-                }
-            } catch {
-                vscode.window.showErrorMessage(`Can't compile file '${args[0]}'`);
-                return new Promise(function(resolve, reject) {
-                    reject("Error");
-                });
-            }
-            args = args.concat(["-o", path]);
-            uri = vscode.Uri.file(posixPath.dirname(path));
-            (await (vscode.workspace.fs.stat(uri)).then(()=>{}, () => {
-                vscode.workspace.fs.createDirectory(uri);
-            }));
-        }
-        
-        const fullCommand = [...easyCommand, ...args];
 
-        exec = new vscode.ProcessExecution( fullCommand[0], fullCommand.slice(1), definition );
-    }
-    }
-    return new vscode.Task( 
-        definition,
-        // scope can sometimes be undefined. in these situations we default to the workspace taskscope as
-        // recommended by the official docs: https://code.visualstudio.com/api/extension-guides/task-provider#task-provider)
-        scope ?? vscode.TaskScope.Workspace,
-        name,
-        TASK_SOURCE,
-        exec,
-        ["$eec"]
+    const exeMap = new Map<string, string>([
+        ["build",  "eec"],
+        ["simulate", "eec"],
+        ["link", "ld.lld"],
+        ["ebuild", "ebuild"],
+        ["flaher", "eflash"],
+    ]);
+
+    const exeName = exeMap.get(definition.command!);
+
+    const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+    const exePath = vscode.Uri.joinPath(
+    vscode.Uri.file(homeDir), ".eec", "bin", os.type() === "Windows_NT" ? `${exeName!}.exe` : exeName!);
+
+    const task = new vscode.Task(
+     //definition,
+    {type: definition.type, command: definition.command!},
+      scope ?? vscode.TaskScope.Workspace,
+      name,
+      TASK_SOURCE,
+      new vscode.ProcessExecution(exePath.fsPath, args)
     );
+
+    const index = args.lastIndexOf("-o");
+    if (index != -1) {
+        //const outDirUri = vscode.Uri.file(args[0]);
+        //const outDir = posixPath.dirname(outDirUri.path);
+        const uri = vscode.Uri.file(posixPath.dirname(args[index+1]));
+
+        (await (vscode.workspace.fs.stat(uri)).then(()=>{}, () => {
+            vscode.workspace.fs.createDirectory(uri);
+        }));
+    }
+    
+    return task;
+
 }
+
+
+
+// export async function buildEasyTask(
+//     scope: vscode.WorkspaceFolder | vscode.TaskScope | undefined,
+//     definition: EasyTaskDefinition,
+//     name: string,
+//     args: string[],
+//     config: Config
+// ): Promise<vscode.Task> {
+//     let exec: vscode.ProcessExecution | vscode.ShellExecution | undefined = undefined;
+
+//     //if ( task.group === vscode.TaskGroup.Build ) {
+//     if ( definition.command == "build" ) {
+//         for (const file of vscode.workspace.textDocuments) {
+//             if (file.isDirty) {
+//                 console.log("changes: ", file.fileName, file.version);
+//                 file.save();
+//             } else {
+//                 console.log("no changes: ", file.fileName, file.version);
+//             }
+//         }
+//     }
+
+// console.log( "command: ", definition.command );
+
+//     const devName = definition.command == "simulate" ? "Simulator" : config.targetDevice.devName;
+
+//     if ( definition.command == "link"  || definition.command == "ebuild" || definition.command == "flaher" )
+//     {
+//         if ( !exec ) {
+//             // Check whether we must use a user-defined substitute for cargo.
+//             // Split on spaces to allow overrides like "wrapper cargo".
+//             const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
+
+//             var easyPath  = await toolchain.linkerPath();
+            
+//             if ( definition.command == "ebuild" )
+//             {
+//                 easyPath = await toolchain.ebuildPath();
+//             }
+//             else if ( definition.command == "flaher" )
+//             {
+//                 easyPath = await toolchain.flasherPath();
+//             }
+
+//             const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
+    
+//             const fullCommand = [...easyCommand, ...args];
+    
+//             exec = new vscode.ProcessExecution( fullCommand[0], fullCommand.slice(1), definition );
+//         }
+//     }
+//     else
+//     {
+//     if ( !exec ) {
+//         // Check whether we must use a user-defined substitute for cargo.
+//         // Split on spaces to allow overrides like "wrapper cargo".
+//         const overrideEasy= definition.overrideEasy ?? definition.overrideEasy;
+//         const easyPath = await toolchain.easyPath();
+//         const easyCommand = overrideEasy?.split(" ") ?? [easyPath];
+
+//         const index = args.indexOf("-o", 0);
+//         if (index == -1) {
+//             let uri = vscode.Uri.file(args[0]);
+//             let path = "";
+//             try {
+//                 let stat = (await vscode.workspace.fs.stat(uri));
+//                 if (stat.type == vscode.FileType.File) {
+//                     path = posixPath.dirname(uri.path);
+//                     path = path.concat(`/out/${devName}/output`);
+//                     if (os.type() === "Windows_NT" && path[0] == '/') {
+//                         path = path.slice(1);
+//                     }
+//                 }
+//                 else {
+//                     path = args[0].concat(`/out/${devName}/output`);
+//                 }
+//             } catch {
+//                 vscode.window.showErrorMessage(`Can't compile file '${args[0]}'`);
+//                 return new Promise(function(resolve, reject) {
+//                     reject("Error");
+//                 });
+//             }
+//             args = args.concat(["-o", path]);
+//             uri = vscode.Uri.file(posixPath.dirname(path));
+//             (await (vscode.workspace.fs.stat(uri)).then(()=>{}, () => {
+//                 vscode.workspace.fs.createDirectory(uri);
+//             }));
+//         }
+        
+//         const fullCommand = [...easyCommand, ...args];
+
+//         exec = new vscode.ProcessExecution( fullCommand[0], fullCommand.slice(1), definition );
+//     }
+//     }
+//     return new vscode.Task( 
+//         definition,
+//         // scope can sometimes be undefined. in these situations we default to the workspace taskscope as
+//         // recommended by the official docs: https://code.visualstudio.com/api/extension-guides/task-provider#task-provider)
+//         scope ?? vscode.TaskScope.Workspace,
+//         name,
+//         TASK_SOURCE,
+//         exec,
+//         ["$eec"]
+//     );
+// }
 
 export function activateTaskProvider(config: Config): vscode.Disposable {
     const provider = new EasyTaskProvider(config);

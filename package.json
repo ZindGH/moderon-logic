@@ -389,12 +389,8 @@
                     "eepl.toolchain.version": {
                         "type": "object",
                         "default": null,
+                        "scope": "machine",
                         "markdownDescription": "Current Toolchain version. Click \\[ **[Set Toolchain](command:eepl.command.setToolchain)** \\] to select Toolchain version."
-                    },
-                    "eepl.build.inputFile": {
-                        "type": "string",
-                        "default": "${workspaceTarget.uri.fsPath}/main.es",
-                        "description": "Path to source file or directory for compilation"
                     },
                     "eepl.eflash.port": {
                         "type": "string",
@@ -456,6 +452,53 @@
                             ""
                         ],
                         "description": "Test array"
+                    },
+
+                    "eepl.build.optimization": {
+                        "type": "string",
+                        "default": "-O3",
+                        "enum": [
+                            "-O0",
+                            "-O1",
+                            "-O2",
+                            "-O3"
+                        ],
+                        "enumDescriptions": [
+                            "Disable optimization. Generates the most debuggable code.",
+                            "Somewhere between -O0 and -O2.",
+                            "Moderate level of optimization which enables most optimizations.",
+                            "Like -O2, except that it enables optimizations that take longer to perform or that may generate larger code (in an attempt to make the program run faster)."
+                        ],
+                        "markdownDescription": "Optimization level for The Compiler (Ignore if `#eepl.build.presets#` is not 'Custom')."
+                    },
+                    "eepl.build.generateDbgInfo": {
+                        "type": "boolean",
+                        "default": true,
+                        "markdownDescription": "Enable generate debug information (Ignore if `#eepl.build.presets#` is not 'Custom')."
+                    },
+                    "eepl.build.runtimeChecks": {
+                        "type": "boolean",
+                        "default": true,
+                        "markdownDescription": "Enable Runtime checks (Ignore if `#eepl.build.presets#` is not 'Custom')."
+                    },
+                    "eepl.build.presets": {
+                        "type": "string",
+                        "default": "OpDebug",
+                        "enum": [
+                            "Debug",
+                            "OpDebug",
+                            "Release",
+                            "Safe Release",
+                            "Custom"
+                        ],
+                        "enumDescriptions": [
+                            "Generate debug information. Disable all optimizations. Enable Runtime checks.",
+                            "Generate debug information. Enable -O3 level optimizations. Enable Runtime checks.",
+                            "Discard debug information. Enable -O3 level optimizations. Disable Runtime checks.",
+                            "Discard debug information. Enable -O3 level optimizations. Enable Runtime checks.",
+                            "User defined optimization level, on/off generate debug information, on/off Runtime checks." 
+                        ],
+                        "description": "Presets for build configuration."
                     }
                 }
             }

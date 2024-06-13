@@ -257,6 +257,27 @@ export function activate(context: vscode.ExtensionContext) {
   
   let config = new Config(context);
 
+
+  
+
+  // (async () => {
+  //   const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+  //   const exePath = vscode.Uri.joinPath(
+  //   vscode.Uri.file(homeDir), ".eec", "bin", "eec.exe");
+
+  //   let task = new vscode.Task(
+  //     { type: 'eec', task: 'compile' },
+  //     vscode.TaskScope.Workspace,
+  //     'compile',
+  //     '34teepl',
+  //     new vscode.ProcessExecution(exePath.fsPath, [])
+  //   );
+
+  //   await vscode.tasks.executeTask(task);
+  // })();
+  
+  
+
   //checkToolchain();
   //installToolchain();
 
@@ -563,18 +584,21 @@ context.subscriptions.push(vscode.commands.registerCommand('vscode-eemblang.prog
         
         console.log("file: ", element[0]);
         
-        if ( element[1] !=  vscode.FileType.File ||  element[0].lastIndexOf(".zip") == -1 || element[0].split('.').length < 3) {
-          console.log("is not toolchain");
+        if ( element[1] !=  vscode.FileType.File ||  element[0].lastIndexOf(".json")  == -1 || element[0].lastIndexOf("ToolchainInfo.") == -1) { //element[0].split('.').length < 3) {
+          //console.log("is not toolchain");
           return;
         }
 
-        const toolchainInfo: toolchain.ToolchainInfo = {
-          label: element[0],
-          file: element[0].substring(0, element[0].lastIndexOf(".zip")),
-          description: '',
-          ver: 'unknown',
-          url: ''
-        };
+        // const toolchainInfo: toolchain.ToolchainInfo = {
+        //   label: element[0],
+        //   file: element[0].substring(0, element[0].lastIndexOf(".zip")),
+        //   description: '',
+        //   ver: 'unknown',
+        //   url: ''
+        // };
+
+        const rowFile = fs.readFileSync(vscode.Uri.joinPath(tmpDir, element[0]).fsPath).toString();
+        const toolchainInfo: toolchain.ToolchainInfo = JSON.parse(rowFile);
 
         const isPicked = (currentToolchain ? currentToolchain.label == toolchainInfo.label : false);
         const pickItem = isPicked ? '$(check)' : ' ';
