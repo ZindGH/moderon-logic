@@ -1,14 +1,14 @@
 {
-    "name": "vscode-eemblang",
+    "name": "moderon_logic",
     "displayName": "Moderon Logic",
     "description": "EEmbLang (EEPL) Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
     "version": "0.8.8",
     "icon": "icon.png",
     "repository": {
-        "url": "https://github.com/YouTooLife/eemblang.git",
+        "url": "https://github.com/Retrograd-Studios/vscode-eemblang.git",
         "type": "git"
     },
-    "publisher": "YouTooLife",
+    "publisher": "Retrograd-Studios",
     "engines": {
         "vscode": "^1.72.0"
     },
@@ -291,11 +291,13 @@
         "commands": [
             {
                 "command": "eepl.command.createNewProject",
-                "title": "EEPL: create new project"
+                "title": "EEPL: create new project",
+                "category": "EEPL"
             },
             {
                 "command": "eepl.command.createProjectFromExample",
-                "title": "EEPL: create project from example"
+                "title": "EEPL: create project from example",
+                "category": "EEPL"
             },
             {
                 "command": "eepl.command.progress",
@@ -304,7 +306,6 @@
             {
                 "command": "eepl.command.compileProject",
                 "title": "Compile project",
-                "category": "vscode-eepl",
                 "icon": {
                     "dark": "res/dark/build-icon.svg",
                     "light": "res/light/build-icon.svg"
@@ -313,61 +314,56 @@
             {
                 "command": "eepl.command.runSimulator",
                 "title": "Run Simulator",
-                "category": "vscode-eepl",
                 "icon": "$(vm-running)"
             },
             {
                 "command": "eepl.command.flash",
                 "title": "Flash to device",
-                "category": "vscode-eepl",
                 "icon": "$(symbol-event)"
             },
             {
                 "command": "eepl.command.buildAndFlash",
                 "title": "Build and Flash to Target",
-                "category": "vscode-eepl",
                 "icon": "$(run-below)"
             },
             {
                 "command": "eepl.command.buildAndDebug",
                 "title": "Build, Flash and start Debug",
-                "category": "vscode-eepl",
                 "icon": "$(debug-alt)"
             },
             {
                 "command": "eepl.command.attach",
                 "title": "Attach to device",
-                "category": "vscode-eepl",
                 "icon": "$(debug)"
             },
             {
                 "command": "eepl.command.openFlasher",
                 "title": "Open EFlasher",
-                "category": "vscode-eepl",
-                "icon": "$(symbol-event)"
+                "icon": "$(chip)"
             },
             {
                 "command": "eepl.command.settings",
                 "title": "Project settings",
-                "category": "vscode-eepl",
                 "icon": "$(settings)"
             },
             {
                 "command": "eepl.command.setTargetDevice",
                 "title": "Set target device",
-                "category": "vscode-eepl",
                 "icon": "$(settings)"
             },
             {
                 "command": "eepl.command.setToolchain",
                 "title": "Set Toolchain",
-                "category": "vscode-eepl",
                 "icon": "$(settings)"
             },
             {
                 "command": "eepl.command.clearCache",
                 "title": "Clear artifacts Cache",
-                "category": "vscode-eepl",
+                "icon": "$(settings)"
+            },
+            {
+                "command": "eepl.command.setBuildPreset",
+                "title": "Select build preset",
                 "icon": "$(settings)"
             }
         ],
@@ -535,7 +531,7 @@
                     "group": "navigation@5"
                 },
                 {
-                    "when": "eepl.command == eepl",
+                    "when": "resourceLangId == eepl",
                     "command": "eepl.command.settings",
                     "group": "navigation@6"
                 }

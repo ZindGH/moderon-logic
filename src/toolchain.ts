@@ -569,7 +569,8 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
 
   
 
-  sbSelectTargetDev.text = sTarget.devName;
+  //sbSelectTargetDev.text = `$(chip)[${sTarget.devName}]`;
+  sbSelectTargetDev.text = `$(device-mobile)[${sTarget.devName}]`;
 
   config.targetDevice = sTarget;
   config.set("target.device", sTarget);
@@ -580,7 +581,7 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
 
 export async function setCurrentTarget(target: TargetInfo, config: Config, sbSelectTargetDev: vscode.StatusBarItem) {
     config.targetDevice = target;
-    sbSelectTargetDev.text = target.devName;
+    sbSelectTargetDev.text = `$(chip)[${target.devName}]`;
     config.set("target.device", target);
 }
 
@@ -594,16 +595,20 @@ export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolch
   const currentToolchain = await getCurrentToolchain();
 
   if (currentToolchain != undefined && 'label' in currentToolchain) {
-    sbSelectToolchain.text = currentToolchain.label;
+    //sbSelectToolchain.text = currentToolchain.label;
+    sbSelectToolchain.text = `$(extensions)`;
+    sbSelectToolchain.tooltip = `Toolchain: ${currentToolchain.label}`;
     if (LastToolchain != undefined && LastToolchain.ver != currentToolchain.ver)
     {
-      sbSelectToolchain.text += "(old version)";
+      //sbSelectToolchain.text += "(old version)";
+      sbSelectToolchain.tooltip += "(old version)";
     }
 
     config.setGlobal('toolchain.version', currentToolchain);
   }
   else {
       sbSelectToolchain.text = "Not installed!";
+      sbSelectToolchain.tooltip = "Select toolchain";
       config.setGlobal('toolchain.version', undefined);
   }
 

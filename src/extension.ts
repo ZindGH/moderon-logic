@@ -257,7 +257,7 @@ export function activate(context: vscode.ExtensionContext) {
   // })();
 
 
-  let extation = vscode.extensions.getExtension("YouTooLife.vscode-eemblang");
+  let extation = vscode.extensions.getExtension("Retrograd-Studios.moderon_logic");
 
   console.log(extation);
 
@@ -330,6 +330,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
 
+
   vscode.debug.onDidStartDebugSession((e) => {
     console.log(e);
     //checkDepencies();
@@ -384,6 +385,15 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.workspace.onDidRenameFiles((e) => {
     EEPL_isReqRebuild = true;
   });
+
+
+  // vscode.workspace.onDidOpenTextDocument((e) => {
+  //   if (e.languageId != 'EEPL') {
+  //     console.log('Deavivate');
+  //   } else {
+  //     console.log('Activate');
+  //   }
+  // });
 
   context.subscriptions.push(activateTaskProvider(config));
 
@@ -476,7 +486,47 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.settings', () => {
-    return vscode.window.showInformationMessage("settings", "Ok");
+    vscode.commands.executeCommand('workbench.action.openWorkspaceSettings', `@ext:${extation?.id}`);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.setBuildPreset', async () => {
+    const pickTargets: any[] = [
+      { label: "Debug", detail: "Generate debug information. Disable all optimizations. Enable Runtime checks.", picked: false, description: " $(debug-alt)" },
+      { label: "OpDebug", detail: "Generate debug information. Enable -O3 level optimizations. Enable Runtime checks.", picked: false, description: " $(debug-alt) $(symbol-event)" },
+      { label: "Release", detail: "Discard debug information. Enable -O3 level optimizations. Disable Runtime checks.", picked: false, description: " $(check-all)" },
+      { label: "Safe Release", detail: "Discard debug information. Enable -O3 level optimizations. Enable Runtime checks.", picked: false, description: " $(workspace-trusted)" },
+      { label: "Custom", detail: "User defined optimization level, on/off generate debug information, on/off Runtime checks. ", picked: false, description: " $(edit)" },
+      { label: "Settings", detail: "Open build settings", picked: false, description: " $(settings)" }
+    ];
+
+    
+
+
+    const curentPreset = config.get<string>('build.presets');
+
+      for (const variant of pickTargets) {
+
+        const isPicked = (curentPreset == variant.label);
+        const pickItem = isPicked ? '$(pass-filled)' : (variant.label != 'Settings' ? '$(circle-large-outline)' : "\t");
+        const detail = ` ${pickItem} ${variant.detail}`;
+        variant.detail = detail;
+        variant.picked = isPicked;
+      }
+
+      const target = await vscode.window.showQuickPick(
+        pickTargets,
+        { placeHolder: 'Select build preset', title: "Build preset" }
+      );
+  
+      if (target) {
+        if (target.label != 'Settings') {
+          config.set('build.presets', target.label);
+        } else {
+          vscode.commands.executeCommand('workbench.action.openWorkspaceSettings', `@ext:${extation?.id} eepl.build`);
+        }
+      }
+
+
   }));
 
 
@@ -485,22 +535,38 @@ export function activate(context: vscode.ExtensionContext) {
   //const devName = config.get<string>('target.device');
   //const devName: string = vscode.workspace.getConfiguration("eepl").get('target.device');
   let sbSelectTargetDev: vscode.StatusBarItem;
-  sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+  sbSelectTargetDev = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 1);
   sbSelectTargetDev.command = 'eepl.command.setTargetDevice';
   context.subscriptions.push(sbSelectTargetDev);
-  sbSelectTargetDev.text = "Select Target";
+  sbSelectTargetDev.text = "$(chip) Select Target";
   sbSelectTargetDev.tooltip = "Select target Device/Platform";
   sbSelectTargetDev.show();
   toolchain.checkAndSetCurrentTarget(config, sbSelectTargetDev);
 
   //const currentToolchain = await toolchain.getCurrentToolchain(); //config.get<string>('toolchain.version');
   let sbSelectToolchain: vscode.StatusBarItem;
-  sbSelectToolchain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+  sbSelectToolchain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 2);
   sbSelectToolchain.command = 'eepl.command.setToolchain';
   context.subscriptions.push(sbSelectToolchain);
-  sbSelectToolchain.text = "Select toolchain";
+  sbSelectToolchain.text = `$(extensions)`;
   sbSelectToolchain.tooltip = "Select toolchain";
   sbSelectToolchain.show();
+
+  let sbSelectBuildPreset: vscode.StatusBarItem;
+  sbSelectBuildPreset = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+  sbSelectBuildPreset.command = 'eepl.command.setBuildPreset';
+  context.subscriptions.push(sbSelectBuildPreset);
+  sbSelectBuildPreset.text = config.get<string>('build.presets');
+  sbSelectBuildPreset.tooltip = "Select build preset";
+  sbSelectBuildPreset.show();
+
+  let sbOpenSettings: vscode.StatusBarItem;
+  sbOpenSettings = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 3);
+  sbOpenSettings.command = 'eepl.command.settings';
+  context.subscriptions.push(sbOpenSettings);
+  sbOpenSettings.text = '$(settings-gear)'
+  sbOpenSettings.tooltip = "Open extension settings";
+  sbOpenSettings.show();
 
 
   // let sbClearCache: vscode.StatusBarItem;
@@ -529,7 +595,15 @@ export function activate(context: vscode.ExtensionContext) {
       toolchain.checkAndSetCurrentToolchain(config, sbSelectToolchain);
     }
 
-    EEPL_isReqRebuild = true;
+    if (e.affectsConfiguration('eepl.build')) {
+      EEPL_isReqRebuild = true;
+      if (e.affectsConfiguration('eepl.build.presets')) {
+        sbSelectBuildPreset.text = config.get<string>('build.presets');
+      } else {
+        config.set('build.presets', 'Custom');
+      }
+    }
+    
 
   }));
 
@@ -598,7 +672,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     targets.forEach(element => {
       const isPicked = (prevDev.description == element.description);
-      const pickItem = isPicked ? '$(check)' : ' ';
+      const pickItem = isPicked ? '$(pass-filled)' : '$(circle-large-outline)';// '$(check)' : ' ';
       const detail = ` ${pickItem}  $(device-mobile) [${element.periphInfo.uiCount} UIs, ${element.periphInfo.relayCount} Relays, ${element.periphInfo.aoCount} AOs, ${element.periphInfo.uartCount} COMs]   $(extensions) framework v${element.frameWorkVerA}.${element.frameWorkVerB}`;
       pickTargets.push({ label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: element.description, _target: element });
     });
@@ -641,7 +715,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
 
         const isPicked = (currentToolchain ? currentToolchain.label == toolchainInfo.label : false);
-        const pickItem = isPicked ? '$(check)' : ' ';
+        const pickItem = isPicked ? '$(pass-filled)' : '$(circle-large-outline)';//'$(check)' : ' ';
         const isLocal = (await toolchain.isFileAtUri(tmpFilePath));
         const localItem = isLocal ? '$(folder-active)' : '$(cloud-download)';
         const detail = ` ${pickItem}  $(info) [v${toolchainInfo.ver}]  ${localItem}`;
@@ -681,7 +755,7 @@ export function activate(context: vscode.ExtensionContext) {
           const toolchainInfo: toolchain.ToolchainInfo = JSON.parse(rowFile);
 
           const isPicked = (currentToolchain ? currentToolchain.label == toolchainInfo.label : false);
-          const pickItem = isPicked ? '$(check)' : ' ';
+          const pickItem = isPicked ? '$(pass-filled)' : '$(circle-large-outline)';//'$(check)' : ' ';
           //const isLocal = true;
           const localItem = '$(file-zip)';// isLocal ? '$(folder-active)' : '$(cloud-download)';
           const detail = ` ${pickItem}  $(info) [v${toolchainInfo.ver}]  ${localItem}`;
