@@ -1,17 +1,20 @@
 
 //import { SerialPort } from 'serialport'
 
-import * as toolchain from './../toolchain';
+import * as toolchain from '../toolchain';
 import * as cp from "child_process";
 import * as readline from "readline";
 
 import * as vscode from 'vscode';
-import { getNonce } from './../util';
+import { getNonce } from '../util';
 import * as fs from 'fs';
 import { Config } from '../config';
 import internal = require('stream');
 
 import * as nodePath from 'path';
+
+import net = require('net');
+import { runDebug } from '../dbg';
 
 //const posixPath = nodePath.posix || nodePath;
 
@@ -23,16 +26,16 @@ export enum EFlashCmd {
 }
 
 
-export class EFlasherClient {
+export class EGDBServer {
 
 
     private portList: string[] = [];
 
-    private execArgs: string[] = [];
-
-    private currentProgress: number = 0;
+    private egdbServer: cp.ChildProcessByStdio<null, internal.Readable, internal.Readable> | undefined = undefined;
 
     private isBusy = false;
+
+    public isReady = false;
 
     private panel: vscode.WebviewPanel | undefined = undefined;
 
@@ -42,7 +45,8 @@ export class EFlasherClient {
     ) { }
 
 
-    private async executeFlasher(cmdId: EFlashCmd): Promise<boolean> {
+    private async executeSever(): Promise<boolean> {
+
 
         if (this.isBusy) {
             return false;
@@ -50,204 +54,231 @@ export class EFlasherClient {
 
         this.isBusy = true;
 
-        const path = await toolchain.getPathForExecutable("eflash");
+        if (this.egdbServer && this.egdbServer.exitCode == null) {
+            this.egdbServer.kill();
+        }
 
+        const path = await toolchain.getPathForExecutable("egdb_server");
 
-        const notificationLabels = [
-
-            'Waiting...',
-            'Waiting...',
-            'Flashing...'
-
-        ];
-
-        const cmdArgs = [
-
-            'portlist',
-            'fast_erase',
-            'flash'
-
-        ];
 
         if (!path) {
-            vscode.window.showErrorMessage("Can't find path to 'eflash'");
+            vscode.window.showErrorMessage("Can't find path to 'egdb_server'");
             this.isBusy = false;
             return false;
         }
 
-        this.currentProgress = 0;
 
         const portId = this.config.get<string>('eflash.port');
 
-        const isResetToDef = this.config.get<boolean>('eflash.isSetDefauls');
-        const isForceErase = this.config.get<boolean>('eflash.isForceErase');
+        // const isResetToDef = this.config.get<boolean>('eflash.isSetDefauls');
+        // const isForceErase = this.config.get<boolean>('eflash.isForceErase');
 
-        const baudRateId = this.config.get<string>('eflash.baudrate');
-        const parityId = this.config.get<string>('eflash.parity');
-        const stopBitsId = this.config.get<string>('eflash.stopbits');
+        let baudRateId = this.config.get<string>('eflash.baudrate');
+        let parityId = this.config.get<string>('eflash.parity');
+        let stopBitsId = this.config.get<string>('eflash.stopbits');
+        
 
-        let eflashArgs: string[] = cmdId == EFlashCmd.GET_PORT_LIST ? []
-            : ['-port', portId, '-speed', baudRateId, '-parity', parityId, '-stopbits', stopBitsId];
+        const gdbServerPort = this.config.get<number>('gdbserver.port');
+        let gdbBaudrate = this.config.get<string>('gdbserver.baudrate');
+        let gdbParity = this.config.get<string>('gdbserver.parity');
+        let gdbStopbits = this.config.get<string>('gdbserver.stopbits');
 
-        if (isForceErase) {
-            eflashArgs.push('-fe');
-        }
+        const baudratesMap = new Map<string, string>([
+            ["9600",  "0"],
+            ["19200", "1"],
+            ["38400", "2"],
+            ["115200", "3"],
+            ["921600", "4"],
+        ]);
 
-        if (isResetToDef) {
-            eflashArgs.push('-sd');
-        }
+        const paritiesMap = new Map<string, string>([
+            ["no",  "0"],
+            ["even", "1"],
+            ["odd", "2"]
+        ]);
 
-        let progPath = "./";
+        const stopbitsMap = new Map<string, string>([
+            ["1",  "0"],
+            ["2", "1"]
+        ]);
 
-        if (cmdId == EFlashCmd.FLASH) {
 
-            if (this.config.targetDevice.description == "[Device]") {
-                    await vscode.commands.executeCommand('eepl.command.setTargetDevice');
-                    if (this.config.targetDevice.description == "[Device]")
-                    {
-                        vscode.window.showErrorMessage('Target Device/Platform is not set.');
-                        return false;
-                    }
+        baudRateId = baudratesMap.get(baudRateId)!;
+        parityId = paritiesMap.get(parityId)!;
+        stopBitsId = stopbitsMap.get(gdbStopbits)!;
+
+        gdbBaudrate = baudratesMap.get(gdbBaudrate)!;
+        gdbParity = paritiesMap.get(gdbParity)!;
+        gdbStopbits = stopbitsMap.get(gdbStopbits)!;
+
+
+        const client  = new net.Socket();
+
+        client.on('connect', ()=> {
+            console.log("EGDB Client: Client is connected");
+            client.write(this.playloadToMsg(`u2:${portId};${baudRateId}${parityId}${stopBitsId}${gdbBaudrate}${gdbParity}${gdbStopbits}`));
+        });
+
+
+        let result: boolean | undefined = undefined;
+
+        client.on('close', (hadError) => {
+            result = !hadError; 
+            console.log("EGDB Client: Client is destroyed");
+        });
+
+        client.on('error', (error) => {
+            console.log("EGDB Client: error");
+            console.log(error);
+            vscode.window.showErrorMessage(`EGDB Server: ${error.message}`);
+            result = false;
+        });
+
+        client.on('timeout', () => {
+            console.log("EGDB Client: timeout");
+            vscode.window.showErrorMessage(`EGDB Server: Timeout connection`);
+            result = false;
+        });
+
+        let bufRx = ""
+        let rxResult = ""
+        client.on('data', (data)=> {
+
+            const msg = data.toString();
+            console.log(msg);
+
+            for (const c of data.toString()) {
+                // if (!bufRx.length && (c == '+' || c == '-')) {
+                //     continue;
+                // }
+                    
+                if (c == '$') {
+                    bufRx = "";
+                    continue;
                 }
 
-            const ws = vscode.workspace.workspaceFolders? vscode.workspace.workspaceFolders[0] : undefined;
-            if (!ws) {
-                vscode.window.showErrorMessage('Workspace is not opened.');
-                return false;
-            }
+                if (c == '#') {
 
-            const cwd = ws.uri.fsPath;//"${cwd}";
-            const devName = this.config.targetDevice.devName;
-            progPath = `${cwd}/out/${devName}/prog.alf`;
+                    rxResult = bufRx;
 
-            if (!fs.existsSync(progPath)) {
-                const options: vscode.OpenDialogOptions = {
-                    canSelectMany: false,
-                    openLabel: 'Select App to Flash',
-                    canSelectFiles: true,
-                    canSelectFolders: false
-                };
-        
-                await vscode.window.showOpenDialog(options).then(fileUri => {
-                    if (fileUri && fileUri[0]) {
-                        //console.log('Selected dir: ' + fileUri[0].fsPath);
-                        progPath = fileUri[0].fsPath;
+                    console.log(rxResult);
+
+                    client.write("+");
+
+                    if (rxResult == "OK") {
+                        vscode.window.showInformationMessage(`EGDB Server: Successfully connected to the Device`);
+                        this.isReady = true;
+                        result = true;
                     } else {
-                        vscode.window.showErrorMessage(`File "${progPath} is not found.`);
-                        return new Promise((resolve, reject) => {
-                            reject(new Error(`File "${progPath} is not found.`));
-                        });
+                        vscode.window.showErrorMessage(`EGDB Server: Failed connected to the Device`);
+                        result = false;
                     }
-                });
-            } 
 
-            eflashArgs.push(progPath);
+                    continue;
+                }
+                bufRx += c;
+            }
             
-        }
+        });
 
-        // console.log(`Path raw: ${progPath}`);
-        // console.log(`Path norm: ${posixPath.normalize(progPath)}`);
-        // console.log(`Path: ${posixPath.dirname(progPath)}`);
-        // console.log(`Path norm: ${posixPath.dirname(posixPath.normalize(progPath))}`);
+        // console.log(`Path raw: ${path}`);
+        // console.log(`Path norm: ${nodePath.normalize(path)}`);
+        // console.log(`Path base: ${nodePath.basename(path)}`);
+        // console.log(`Path: ${nodePath.dirname(path)}`);
+        // console.log(`Path norm: ${nodePath.dirname(nodePath.normalize(path))}`);
 
-
-
-        let eflash: cp.ChildProcessByStdio<null, internal.Readable, internal.Readable> | undefined = undefined;
         const promiseExec = new Promise((resolve, reject) => {
 
-            eflash = cp.spawn(path, ["-nogui", "-cmd", cmdArgs[cmdId]].concat(eflashArgs), {
-                stdio: ["ignore", "pipe", "pipe"], cwd: nodePath.dirname(progPath)
+            this.egdbServer = cp.spawn(path, ["-p", gdbServerPort.toString(10)], {
+                stdio: ["ignore", "pipe", "pipe"], cwd: nodePath.dirname(path)
             }).on("error", (err) => {
+                this.isReady = false;
                 console.log("Error: ", err);
                 reject(new Error(`could not launch eflash: ${err}`));
                 //return false;
             }).on("exit", (exitCode, _) => {
-                if (exitCode == 0) {
+                console.log("eGdbServer is closed");
+                this.isReady = false;
+                if (exitCode == 0) {   
                     resolve("Done");
                 }
                 else {
-                    //reject(exitCode);
                     reject(new Error(`exit code: ${exitCode}.`));
                 }
             });
 
 
-            eflash.stderr.on("data", (chunk) => {
+            this.egdbServer.stdout.on("data", (chunk) => {
                 console.log(chunk.toString());
             });
 
-            const rl = readline.createInterface({ input: eflash.stdout });
+            // this.egdbServer.stdout.on("data", (chunk) => {
+            //     console.log(chunk.toString());
+            // });
+
+            const rl = readline.createInterface({ input: this.egdbServer.stderr });
             rl.on("line", (line) => {
 
-                const message = line.split(": ");
+                console.log(line);
 
-                if (message[0] == "Info") {
-                    vscode.window.showInformationMessage("EFlasher: " + message[1]);
-                } else if (message[0] == "Progress") {
-                    this.currentProgress = Number.parseInt(message[1], 10);
-                    //console.log("My Progress: "+this.currentProgress);
-                } else if (message[0] == "Error") {
-                    vscode.window.showErrorMessage("EFlasher: " + message[1]);
-                } else if (message[0] == "PortName") {
-                    this.portList.push(message[1]);
+                if (line.indexOf("INFO gdb-server.c: Listening at") != -1) {
+                    if (result == undefined && !client.connecting) {
+                        client.connect({
+                            port: gdbServerPort
+                        });
+                    }
                 }
+
             });
 
         });
 
             promiseExec.then(() => {
-                result = true;
+                //result = true;
             }, () => {
                 result = false;
             }).catch(() => {
                 result = false;
             });
 
-        let result: boolean | undefined = undefined;
+        
 
         const prog = await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: notificationLabels[cmdId],
+            title: "EGDB Server",
             cancellable: true
         }, async (progress, token) => {
 
-            progress.report({ message: "Waiting...", increment: -1 });
+            progress.report({ message: "Connecting to the Device...", increment: -1 });
 
             token.onCancellationRequested(() => {
                 result = false;
-                if (eflash && eflash.exitCode == null) {
-                    eflash.kill();
+                if (this.egdbServer && this.egdbServer.exitCode == null) {
+                    this.egdbServer.kill();
                 }
             });
-            
-
-
-            let prevProgress = this.currentProgress;
 
             while (result == undefined) {
 
-                if (cmdId >= EFlashCmd.FLASH) {
-                    const stepProg = this.currentProgress - prevProgress;
-                    prevProgress = this.currentProgress;
-                    progress.report({ message: `${this.currentProgress}%`, increment: stepProg });
-                    console.log("Increment: "+stepProg);
-                }
-
                 if (token.isCancellationRequested) {
                     result = false;
-                    if (eflash && eflash.exitCode == null) {
-                        eflash.kill();
+                    if (this.egdbServer && this.egdbServer.exitCode == null) {
+                        this.egdbServer.kill();
                     }
                     
                 }
 
-                await new Promise(f => setTimeout(f, 100));
-
+                await new Promise(f => setTimeout(f, 500));
             }
 
             return;
 
         });
+
+        if (!client.destroyed) {
+            client.end();
+            //client.destroy();
+        }
 
         this.isBusy = false;
 
@@ -255,12 +286,28 @@ export class EFlasherClient {
 
     }
 
+    private playloadToMsg(payload: string) {
+
+        let result = "$";
+        let cksum = 0;
+
+        for (const c of payload) {
+            cksum = (c.charCodeAt(0) + cksum) % 256;
+            result += c
+        }
+
+        result += '#'
+        result += cksum.toString(16).toLowerCase();
+
+        return result;
+    }
+
 
     private async getPortList(): Promise<string[]> {
 
         this.portList = [];
 
-        const result = await this.executeFlasher(EFlashCmd.GET_PORT_LIST);
+        const result = await this.executeSever();
         if (!result) {
             return [];
         }
@@ -330,7 +377,7 @@ export class EFlasherClient {
                             this.config.set('eflash.parity', parityId);
                             this.config.set('eflash.stopbits', stopBitsId);
 
-                            const result = this.executeFlasher(EFlashCmd.FLASH);
+                            const result = this.executeSever();
                             if (this.panel) {
                                 this.panel.dispose();
                             }
@@ -372,54 +419,36 @@ export class EFlasherClient {
     }
 
 
-    public async flash(cb: (err: boolean) => any ) {
+    public async runGdbServer() {
 
 
-        const result = await this.executeFlasher(EFlashCmd.FLASH);
+        const result = await this.executeSever();
         if (result) {
-            cb(false);
+            runDebug(this.config);
             return;
         }
 
-        cb(true);
-        this.openWebView();
+        // this.openWebView();
 
     }
 
 
     private async getHtmlForWebview(webview: vscode.Webview): Promise<string> {
-        // Local path to script and css for the webview
 
         const htmlUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this.context.extensionUri, 'media', 'eflasher', 'index.html'));
+            this.context.extensionUri, 'media', 'EGDB_Server', 'index.html'));
 
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this.context.extensionUri, 'media', 'eflasher', 'eflash.js'));
+            this.context.extensionUri, 'media', 'EGDB_Server', 'gdbServer.js'));
 
         const styleMainUri = webview.asWebviewUri(vscode.Uri.joinPath(
-            this.context.extensionUri, 'media', 'eflasher', 'eflash.css'));
-
-        // const styleResetUri = webview.asWebviewUri(vscode.Uri.joinPath(
-        // 	this.context.extensionUri, 'media', 'reset.css'));
+            this.context.extensionUri, 'media', 'EGDB_Server', 'gdbServer.css'));
 
         const styleVSCodeUri = webview.asWebviewUri(vscode.Uri.joinPath(
             this.context.extensionUri, 'media', 'vscode.css'));
 
-        //let htmlBody: string = "";
-
-        //console.log(htmlUri.path);
 
         const htmlBody = fs.readFileSync(htmlUri.fsPath).toString();
-
-        // await vscode.workspace.fs.readFile(htmlUri).then(value => {
-
-        //         htmlBody = value.toString();
-
-        //     },  (e) => {
-        //         console.log(e);
-        //         console.log("Can't load index.html");
-        //     });
-
 
         // Use a nonce to whitelist which scripts can be run
         const nonce = getNonce();

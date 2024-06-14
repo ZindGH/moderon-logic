@@ -877,7 +877,7 @@ export async function getCurrentToolchain(): Promise<ToolchainInfo | undefined> 
 /** Mirrors `toolchain::get_path_for_executable()` implementation */
 export const getPathForExecutable = memoizeAsync(
   // We apply caching to decrease file-system interactions
-  async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild" | "eflash" | "arm-none-eabi-gdb"): Promise<string> => {
+  async (executableName: "eec" | "EEcompiler" | "easy" | "st-util" | "ld.lld" | "ebuild" | "eflash" | "arm-none-eabi-gdb" | "egdb_server"): Promise<string> => {
     {
       const envVar = process.env[executableName.toUpperCase()];
       if (envVar) return envVar;

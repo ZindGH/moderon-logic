@@ -12,6 +12,8 @@ import * as cp from "child_process";
 import Path = require('path');
 import { Config } from './config';
 
+import * as fs from 'fs';
+
 
 export interface EasyDbgCfg extends DebugConfiguration {
   request: string,
@@ -86,82 +88,10 @@ if (config.targetDevice.description == "[Device]")
   if (!isCanDebug) {
     return;
   }
+
   
-  //    const definition: tasks.EasyTaskDefinition = {
-  //     type: tasks.TASK_TYPE,
-  //     command: "", // run, test, etc...
-  //     args: [],
-  //     cwd: vscode.workspace.getWorkspaceFolder ,
-  //     env: prepareEnv(runnable, config.runnableEnv),
-  //     overrideCargo: runnable.args.overrideCargo,
-  // };
-  
-  //    const target = vscode.workspace.workspaceFolders![0]; // safe, see main activate()
-  //     const cargoTask = await tasks.buildCargoTask(
-  //         target,
-  //         definition,
-  //         runnable.label,
-  //         args,
-  //         config.cargoRunner,
-  //         true
-  //     );
-  
-  //     cargoTask.presentationOptions.clear = true;
-  //     // Sadly, this doesn't prevent focus stealing if the terminal is currently
-  //     // hidden, and will become revealed due to task exucution.
-  //     cargoTask.presentationOptions.focus = false;
-  
-  
-    const path = await toolchain.getPathForExecutable("st-util");
-    
-    if (!path) {
-      vscode.window.showErrorMessage("Can't find path to 'st-util'");
-      return;
-    }
-  
-    const workspace = vscode.workspace.workspaceFolders![0];
-  
-    //const exec = cp.spawn(path, [], {});
-  
-    const exec = new Promise((resolve, reject) => {
-      const cargo = cp.spawn(path, [], {
-          stdio: ["ignore", "pipe", "pipe"],
-   //       cwd: workspace.name
-      });
-  
-      cargo.on("error", (err) => {
-        reject(new Error(`could not launch cargo: ${err}`))
-      });
-  
-      cargo.stderr.on("data", (chunk) => {
-        console.log(chunk.toString());
-      });
-  
-      const rl = readline.createInterface({ input: cargo.stdout });
-      rl.on("line", (line) => {
-        console.log(line);
-          //const message = JSON.parse(line);
-          //onStdoutJson(message);
-      });
-  
-      cargo.on("exit", (exitCode, _) => {
-          if (exitCode === 0) { 
-            resolve(exitCode);
-          }
-          else {
-            reject(new Error(`exit code: ${exitCode}.`));
-          }
-      });
-  });
-  
-    await new Promise(f => setTimeout(f, 1000));
-  
-    
-    // const exec =  execute(path, {}).then(() => {
-    //   vscode.window.showInformationMessage("Success");
-    // }, () => {
-    //   vscode.window.showErrorMessage("Error");
-    // }); //cp.exec(path);
+    // const workspace = vscode.workspace.workspaceFolders![0];
+
 
     const pathToArmToolchain = await toolchain.getPathForExecutable("arm-none-eabi-gdb");
     
@@ -170,11 +100,46 @@ if (config.targetDevice.description == "[Device]")
       return;
     }
 
+    let progPath = "./";
+
+    const ws = vscode.workspace.workspaceFolders? vscode.workspace.workspaceFolders[0] : undefined;
+            if (!ws) {
+                vscode.window.showErrorMessage('Workspace is not opened.');
+                return false;
+            }
+
+            const cwd = ws.uri.fsPath;//"${cwd}";
+            const devName = config.targetDevice.devName;
+            progPath = `${cwd}/out/${devName}/output.elf`;
+
+            if (!fs.existsSync(progPath)) {
+                const options: vscode.OpenDialogOptions = {
+                    canSelectMany: false,
+                    openLabel: 'Select App to Flash',
+                    canSelectFiles: true,
+                    canSelectFolders: false
+                };
+        
+                await vscode.window.showOpenDialog(options).then(fileUri => {
+                    if (fileUri && fileUri[0]) {
+                        //console.log('Selected dir: ' + fileUri[0].fsPath);
+                        progPath = fileUri[0].fsPath;
+                    } else {
+                        vscode.window.showErrorMessage(`File "${progPath} is not found.`);
+                        return new Promise((resolve, reject) => {
+                            reject(new Error(`File "${progPath} is not found.`));
+                        });
+                    }
+                });
+            } 
+
     const DirPathToArmToolchain = Path.dirname(pathToArmToolchain);
 
-    const devName = config.targetDevice.devName;
-    const cwd = "${cwd}";
-    const targetExe = `${cwd}/out/${devName}/output.elf`;
+    //const devName = config.targetDevice.devName;
+    //const cwd = "${cwd}";
+    //const targetExe = `${cwd}/out/${devName}/output.elf`;
+
+    const gdbServerPort = config.get<number>('gdbserver.port');
   
      const debugConfig: vscode.DebugConfiguration = {
       type: "cortex-debug",
@@ -182,20 +147,20 @@ if (config.targetDevice.description == "[Device]")
       name: "Debug on PLC",
       cwd: "${workspaceFolder}",
       //svdFile: "./bin/target.svd",
-      executable: targetExe,
+      executable: progPath,
       runToEntryPoint: "__entryPoint__",
       servertype: "external",
       //gdbPath: "C:/Users/YouTooLife_PC/.eec/out/build/bin/arm-none-eabi-gdb.exe",
       armToolchainPath: DirPathToArmToolchain,
       gdbPath: pathToArmToolchain,
-      gdbTarget: "localhost:21833",
+      gdbTarget: `localhost:${gdbServerPort}`,
       //gdbTarget: "localhost:4242",
       showDevDebugOutput: "raw"
       //preLaunchTask: "st-util"
      };
                  
   
-     vscode.debug.startDebugging(workspace, debugConfig);
+     vscode.debug.startDebugging(ws, debugConfig);
    
   }
 

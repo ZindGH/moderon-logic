@@ -29,6 +29,7 @@ import { checkPackages } from './packages';
 import { execArgv } from 'process';
 import { createNewProject, selectExamples } from './examples';
 import { EFlasherClient } from './EFlasher/eflasher';
+import { EGDBServer } from './EGDB_Server/egdbServer';
 
 //import { resolve } from 'path';
 
@@ -263,6 +264,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   let config = new Config(context);
   let eflashClient = new EFlasherClient(config, context);
+  let eGdbServer = new EGDBServer(config, context);
 
 
 
@@ -445,8 +447,24 @@ export function activate(context: vscode.ExtensionContext) {
     const exec = await vscode.tasks.executeTask(task);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.flash', config => {
-    return vscode.window.showInformationMessage("Flash", "Ok");
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.buildAndDebug', config => {
+    let runRebuild = false;
+    for (const file of vscode.workspace.textDocuments) {
+      if (file.isDirty) {
+        runRebuild = true;
+        break;
+      } 
+    }
+
+    if (EEPL_isReqRebuild || EEPL_isBuildFailed || runRebuild) {
+      EEPL_stackOfCommands.push('eepl.command.buildAndDebug');
+      EEPL_stackOfCommands.push('eepl.command.buildAndFlash');
+      vscode.commands.executeCommand('eepl.command.compileProject');
+      return;
+    }
+
+    eGdbServer.runGdbServer();
+    
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.openFlasher', async () => {
@@ -459,7 +477,8 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.attach', () => {
-    runDebug(config);
+    //runDebug(config);
+    eGdbServer.runGdbServer();
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.buildAndFlash', () => {
@@ -467,11 +486,8 @@ export function activate(context: vscode.ExtensionContext) {
     let runRebuild = false;
     for (const file of vscode.workspace.textDocuments) {
       if (file.isDirty) {
-        //console.log("changes: ", file.fileName, file.version);
         runRebuild = true;
-        //file.save();
-      } else {
-        console.log("no changes: ", file.fileName, file.version);
+        break;
       }
     }
 
@@ -481,7 +497,19 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    eflashClient.flash();
+    eflashClient.flash((err)=>{
+      if (!err) {
+        const cmd = EEPL_stackOfCommands.pop();
+        if (cmd) {
+          vscode.commands.executeCommand(cmd);
+        }
+      } else {
+        if (EEPL_stackOfCommands.length) {
+          EEPL_stackOfCommands = [];
+        }
+      }
+        
+    });
 
   }));
 

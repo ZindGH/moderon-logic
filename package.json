@@ -317,11 +317,6 @@
                 "icon": "$(vm-running)"
             },
             {
-                "command": "eepl.command.flash",
-                "title": "Flash to device",
-                "icon": "$(symbol-event)"
-            },
-            {
                 "command": "eepl.command.buildAndFlash",
                 "title": "Build and Flash to Target",
                 "icon": "$(run-below)"
@@ -494,6 +489,46 @@
                         "type": "string",
                         "default": "PackageInfo.es",
                         "markdownDescription": "Input source file."
+                    },
+                    "eepl.gdbserver.port": {
+                        "type": "number",
+                        "default": 4242,
+                        "markdownDescription": "GDB server port"
+                    },
+                    "eepl.gdbserver.baudrate": {
+                        "type": "string",
+                        "default": "921600",
+                        "enum": [
+                            "9600",
+                            "19200",
+                            "38400",
+                            "115200",
+                            "921600"
+                        ],
+                        "description": "GDB SerialPort Bridge Baudrate"
+                    },
+                    "eepl.gdbserver.parity": {
+                        "type": "string",
+                        "default": "no",
+                        "enum": [
+                            "no",
+                            "even",
+                            "odd"
+                        ],
+                        "description": "GDB SerialPort Bridge Parity"
+                    },
+                    "eepl.gdbserver.stopbits": {
+                        "type": "string",
+                        "default": "1",
+                        "enum": [
+                            "1",
+                            "2"
+                        ],
+                        "enumDescriptions": [
+                            "One stop bit",
+                            "Two stop bits"
+                        ],
+                        "description": "GDB SerialPort Bridge StopBits"
                     }
                 }
             }
@@ -529,11 +564,6 @@
                     "when": "resourceLangId == eepl",
                     "command": "eepl.command.attach",
                     "group": "navigation@5"
-                },
-                {
-                    "when": "resourceLangId == eepl",
-                    "command": "eepl.command.settings",
-                    "group": "navigation@6"
                 }
             ]
         }
