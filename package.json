@@ -291,12 +291,12 @@
         "commands": [
             {
                 "command": "eepl.command.createNewProject",
-                "title": "EEPL: create new project",
+                "title": "Create new project",
                 "category": "EEPL"
             },
             {
                 "command": "eepl.command.createProjectFromExample",
-                "title": "EEPL: create project from example",
+                "title": "Create project from example",
                 "category": "EEPL"
             },
             {
@@ -359,6 +359,12 @@
             {
                 "command": "eepl.command.setBuildPreset",
                 "title": "Select build preset",
+                "icon": "$(settings)"
+            },
+            {
+                "command": "eepl.command.dropDebugger",
+                "title": "Drop Debugger",
+                "category": "EEPL",
                 "icon": "$(settings)"
             }
         ],

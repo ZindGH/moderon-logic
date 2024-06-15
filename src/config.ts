@@ -195,12 +195,12 @@ export class Config {
         return vscode.workspace.getConfiguration(this.rootSection).get<T>(path)!;
     }
 
-    public set(path: string, value: any) {
-        vscode.workspace.getConfiguration(this.rootSection).update(path, value);
+    public async set(path: string, value: any) {
+        await vscode.workspace.getConfiguration(this.rootSection).update(path, value);
     }
 
-    public setGlobal(path: string, value: any) {
-        vscode.workspace.getConfiguration(this.rootSection).update(path, value, vscode.ConfigurationTarget.Global);
+    public async setGlobal(path: string, value: any) {
+        await vscode.workspace.getConfiguration(this.rootSection).update(path, value, vscode.ConfigurationTarget.Global);
     }
 
 //     get serverPath() {

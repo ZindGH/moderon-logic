@@ -301,10 +301,9 @@ select {
 	background: var(--vscode-settings-rowHoverBackground);
   } */
 
-  .form-block {
-	display:block;
-	/* background: blue; */
-  }
+  /* .form-block {
+		display:block; 
+  } */
 
 
   .form-block-row {

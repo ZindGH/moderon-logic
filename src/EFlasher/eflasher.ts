@@ -256,7 +256,7 @@ export class EFlasherClient {
     }
 
 
-    private async getPortList(): Promise<string[]> {
+    public async getPortList(): Promise<string[]> {
 
         this.portList = [];
 
@@ -323,12 +323,12 @@ export class EFlasherClient {
                             const parityId = message.data.parityId;
                             const stopBitsId = message.data.stopBitsId;
 
-                            this.config.set('eflash.port', portId);
-                            this.config.set('eflash.isSetDefauls', isResetToDef);
-                            this.config.set('eflash.isForceErase', isForceErase);
-                            this.config.set('eflash.baudrate', baudRateId);
-                            this.config.set('eflash.parity', parityId);
-                            this.config.set('eflash.stopbits', stopBitsId);
+                            await this.config.set('eflash.port', portId);
+                            await this.config.set('eflash.isSetDefauls', isResetToDef);
+                            await this.config.set('eflash.isForceErase', isForceErase);
+                            await this.config.set('eflash.baudrate', baudRateId);
+                            await this.config.set('eflash.parity', parityId);
+                            await this.config.set('eflash.stopbits', stopBitsId);
 
                             const result = this.executeFlasher(EFlashCmd.FLASH);
                             if (this.panel) {

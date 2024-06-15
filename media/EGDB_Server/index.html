@@ -1,25 +1,12 @@
 <div class="window">
     <div class="form-wrap">
-        <h2>EFlasher settings</h2>
+        <h2 style="text-align: center;">EEmbGDG Server settings</h2>
 
-        <div class="form-block">
-            <br />
-            <!-- <h3>Serial Port settings</h3> -->
-            
-            <!-- <p>12341234</p> -->
+        <div class="form-block" style="display: inline-block; width: 48%;">
+            <!-- <br /> -->
+            <h3>Serial Port settings (first connect)</h3>
         <div class="form-block-row">
         <form>
-        <!-- <fieldset>
-            <legend>Контактная информация</legend> -->
-            <!-- <label>Имя</label><input type="text" required/> -->
-            <label class="custom-checkbox">
-                <input  id="isResetToDef-js" type="checkbox"  name="isResetToDef" >
-                <span>Reset UserData to Default</span>
-            </label>
-            <label class="custom-checkbox" >
-                <input id="isForceErase-js" type="checkbox" name="isForceErase">
-                <span>Forse Full Erase</span>
-            </label>
 
             <div class="select-serialport" style="display: block;">
             <div style="width: 90%; display: inline-block;">
@@ -66,14 +53,49 @@
                 <option value="1">One</option> 
                 <option value="2">Two</option> 
             </select> 
-            
-        <!-- </fieldset> -->
-        <button id="flushBtn-js" type="button" >Flash</button> 
-        <!-- <a id="a-js">dummy text</a> 
-        <div class="clBox"></div>  -->
+        <!-- <button id="flushBtn-js" type="button" >Flash</button>  -->
         </form>
         </div>
 
+        <br />
+        </div>
+
+
+        <div class="form-block" style="display: inline-block; width: 48%;">
+            <!-- <br /> -->
+            <h3>GDB Bridge settings</h3>
+        <div class="form-block-row">
+        <form>
+            
+            <label for="serverPortId-js">GDB Server Port</label>
+            <input type="number" id="serverPortId-js" name="serverPortId" value="4242" min="0" />
+            
+            <h3>Serial Port settings for Debugging</h3>
+            <label for="baudRateGdbId-js">Baudrate for Debugging</label>
+            <select name="baudRateGdbId" id="baudRateGdbId-js">
+                <option disabled>Select baudrate</option>
+                <option value="9600">9600</option> 
+                <option value="19200">19200</option> 
+                <option value="38400">38400</option> 
+                <option value="115200">115200</option> 
+                <option value="921600">921600</option> 
+            </select> 
+            <label for="parityGdbId-js">Parity for Debugging</label>
+            <select name="parityGdbId" id="parityGdbId-js">
+                <option disabled>Select parity</option>
+                <option value="no">No</option> 
+                <option value="even">Even</option> 
+                <option value="odd">Odd</option> 
+            </select> 
+            <label for="stopBitsGdbId-js">StopBits for Debugging</label>
+            <select name="stopBitsGdbId" id="stopBitsGdbId-js">
+                <option disabled>Select stopbits</option>
+                <option value="1">One</option> 
+                <option value="2">Two</option> 
+            </select> 
+        <button id="flushBtn-js" type="button" >Attach</button> 
+        </form>
+        </div>
         <br />
         </div>
 

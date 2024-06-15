@@ -3,27 +3,25 @@ const vscode = acquireVsCodeApi();
 
 const updatePortListBtn = document.getElementById("updatePortList-js");
 const flushBtn = document.getElementById("flushBtn-js");
-// const aJs = document.getElementById("a-js");
 const portId = document.getElementById("portId-js");
-const isResetToDef = document.getElementById("isResetToDef-js");
-const isForceErase = document.getElementById("isForceErase-js");
 const baudRateId = document.getElementById("baudRateId-js");
 const parityId = document.getElementById("parityId-js");
 const stopBitsId = document.getElementById("stopBitsId-js");
 
+const serverPortId = document.getElementById("serverPortId-js");
+const baudRateGdbId = document.getElementById("baudRateGdbId-js");
+const parityGdbId = document.getElementById("parityGdbId-js");
+const stopBitsGdbId = document.getElementById("stopBitsGdbId-js");
+
 
 
 function flushBtnHandler() {
-	// 	aJs.textContent = "Dummy Text 2";
-	// 	alert("Hello");
-	//   console.log("Hello!");
-	//   aJs.innerHTML="Dummy Text: "+portId.value;
 
 	vscode.postMessage({
-		command: 'flash',
+		command: 'attach',
 		data: {
-			'portId': portId.value, 'isResetToDef': isResetToDef.checked, 'isForceErase': isForceErase.checked,
-			'baudRateId': baudRateId.value, 'parityId': parityId.value, 'stopBitsId': stopBitsId.value
+			'portId': portId.value, 'baudRateId': baudRateId.value, 'parityId': parityId.value, 'stopBitsId': stopBitsId.value,
+			'serverPortId': serverPortId.value, 'baudRateGdbId': baudRateGdbId.value, 'parityGdbId': parityGdbId.value, 'stopBitsGdbId': stopBitsGdbId.value
 		}
 	});
 
@@ -67,12 +65,14 @@ window.addEventListener('message', event => {
 				portId.innerHTML = newData;
 				portId.value = message.data.portId;
 
-				isResetToDef.checked = message.data.isResetToDef;
-				isForceErase.checked = message.data.isForceErase;
-
 				baudRateId.value = message.data.baudRateId;
 				parityId.value = message.data.parityId;
 				stopBitsId.value = message.data.stopBitsId;
+
+				serverPortId.value = message.data.serverPortId;
+				baudRateGdbId.value = message.data.baudRateGdbId;
+				parityGdbId.value = message.data.parityGdbId;
+				stopBitsGdbId.value = message.data.stopBitsGdbId;
 
 				break;
 			}

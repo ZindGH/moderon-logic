@@ -397,7 +397,7 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
     }
 
     token.onCancellationRequested(() => {
-      console.log("User canceled the long running operation");
+      //console.log("User canceled the long running operation");
       request.destroy();
     });
 
@@ -437,10 +437,10 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
 
   if (result) {
     const toolchainInfoFile = vscode.Uri.joinPath(toolchainDirPath, ".eec", "toolchain.json");
-    if (getVerToInt(toolchainInfo.ver) < getVerToInt("0.9.0")) {
+    //if (getVerToInt(toolchainInfo.ver) < getVerToInt("0.9.0")) {
       const json = JSON.stringify(toolchainInfo).toString();
       fs.writeFileSync(toolchainInfoFile.fsPath, json, { flag: "w" });
-    }
+    //}
     const toolchainTmpInfoFile = vscode.Uri.joinPath(
       vscode.Uri.file(homeDir),
       ".eec-tmp", `ToolchainInfo.${toolchainInfo.file}.json`
@@ -582,7 +582,7 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
 export async function setCurrentTarget(target: TargetInfo, config: Config, sbSelectTargetDev: vscode.StatusBarItem) {
     config.targetDevice = target;
     sbSelectTargetDev.text = `$(chip)[${target.devName}]`;
-    config.set("target.device", target);
+    await config.set("target.device", target);
 }
 
 
@@ -604,12 +604,12 @@ export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolch
       sbSelectToolchain.tooltip += "(old version)";
     }
 
-    config.setGlobal('toolchain.version', currentToolchain);
+    await config.setGlobal('toolchain.version', currentToolchain);
   }
   else {
       sbSelectToolchain.text = "Not installed!";
       sbSelectToolchain.tooltip = "Select toolchain";
-      config.setGlobal('toolchain.version', undefined);
+      await config.setGlobal('toolchain.version', undefined);
   }
 
 }

@@ -244,6 +244,7 @@ let EEPL_stackOfCommands: string[] = []
 
 
 
+let EEPL_isFlashFailed = true;
 let EEPL_isBuildFailed = true;
 let EEPL_isReqRebuild = true;
 
@@ -264,7 +265,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   let config = new Config(context);
   let eflashClient = new EFlasherClient(config, context);
-  let eGdbServer = new EGDBServer(config, context);
+  let eGdbServer = new EGDBServer(config, context, eflashClient);
 
 
 
@@ -463,8 +464,13 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
+    if (EEPL_isFlashFailed) {
+      EEPL_stackOfCommands.push('eepl.command.buildAndDebug');
+      vscode.commands.executeCommand('eepl.command.buildAndFlash');
+    }
+
     eGdbServer.runGdbServer();
-    
+
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.openFlasher', async () => {
@@ -491,6 +497,8 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }
 
+    EEPL_isFlashFailed = true;
+
     if (EEPL_isReqRebuild || EEPL_isBuildFailed || runRebuild) {
       EEPL_stackOfCommands.push('eepl.command.buildAndFlash');
       vscode.commands.executeCommand('eepl.command.compileProject');
@@ -501,15 +509,24 @@ export function activate(context: vscode.ExtensionContext) {
       if (!err) {
         const cmd = EEPL_stackOfCommands.pop();
         if (cmd) {
+          EEPL_isFlashFailed = false;
           vscode.commands.executeCommand(cmd);
         }
       } else {
         if (EEPL_stackOfCommands.length) {
+          EEPL_isFlashFailed = true;
           EEPL_stackOfCommands = [];
         }
       }
         
     });
+
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.dropDebugger', async config => {
+
+    eGdbServer.dropGdbServer();
+    vscode.debug.stopDebugging();
 
   }));
 
@@ -605,6 +622,23 @@ export function activate(context: vscode.ExtensionContext) {
   // sbClearCache.tooltip = "Clear cache";
   // sbClearCache.show();
 
+  let sbDropDebugger: vscode.StatusBarItem;
+  sbDropDebugger = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
+  sbDropDebugger.command = 'eepl.command.dropDebugger';
+  context.subscriptions.push(sbSelectToolchain);
+  sbDropDebugger.text = "[$(debug)$(close-all)]";
+  sbDropDebugger.tooltip = "Drop Debugger and GDB Server";
+  
+
+
+  vscode.debug.onDidStartDebugSession((e)=>{
+    sbDropDebugger.show();
+  });
+
+  vscode.debug.onDidTerminateDebugSession((e)=>{
+      sbDropDebugger.hide();
+  });
+
 
 
 
@@ -643,36 +677,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     await toolchain.checkToolchain();
     let currentToolchain = await toolchain.getCurrentToolchain();
-    //const inCfg = config.get<toolchain.ToolchainInfo>("toolchain.version");
-    //   if (currentToolchain == undefined || !('ver' in currentToolchain))
-    //   {
-    //       currentToolchain = {
-    //       label: "",
-    //       file: "",
-    //       description: "",
-    //       ver: "0.0.0",
-    //       url: ""
-    //     };
-    //   }
-    //   else
-    //   {
-    //     currentToolchain.ver += ".0";
-    //   }
-    // config.setGlobal("toolchain.version", currentToolchain);
     toolchain.checkAndSetCurrentToolchain(config, sbSelectToolchain);
+
   })();
 
 
-
-
-
-  // (async () => {
-  //   await toolchain.checkToolchain();
-  //   const targetDev = await toolchain.getTargetWithDevName(devName);
-  //   sbSelectTargetDev.text = targetDev.description;
-  //   config.targetDevice = targetDev;
-  //   sbSelectToolchain.text = config.get<string>('toolchain.version') + (toolchain.IsNightlyToolchain ? " (latest version)" : " (old version)");
-  // })();
 
   vscode.commands.registerCommand('eepl.command.clearCache', async () => {
 
@@ -848,6 +857,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 
   context.subscriptions.push(TableEditorProvider.register(context));
+
+
+ 
 
   // let factory = new InlineDebugAdapterFactory();
   // context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('eembdbg', factory));

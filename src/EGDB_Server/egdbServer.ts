@@ -15,6 +15,7 @@ import * as nodePath from 'path';
 
 import net = require('net');
 import { runDebug } from '../dbg';
+import { EFlasherClient } from '../EFlasher/eflasher';
 
 //const posixPath = nodePath.posix || nodePath;
 
@@ -41,7 +42,8 @@ export class EGDBServer {
 
     constructor(
         private readonly config: Config,
-        private readonly context: vscode.ExtensionContext
+        private readonly context: vscode.ExtensionContext,
+        private readonly eflasher: EFlasherClient
     ) { }
 
 
@@ -166,7 +168,7 @@ export class EGDBServer {
                     client.write("+");
 
                     if (rxResult == "OK") {
-                        vscode.window.showInformationMessage(`EGDB Server: Successfully connected to the Device`);
+                        //vscode.window.showInformationMessage(`EGDB Server: Successfully connected to the Device`);
                         this.isReady = true;
                         result = true;
                     } else {
@@ -303,17 +305,17 @@ export class EGDBServer {
     }
 
 
-    private async getPortList(): Promise<string[]> {
+    // private async getPortList(): Promise<string[]> {
 
-        this.portList = [];
+    //     this.portList = [];
 
-        const result = await this.executeSever();
-        if (!result) {
-            return [];
-        }
+    //     const result = await this.executeSever();
+    //     if (!result) {
+    //         return [];
+    //     }
 
-        return this.portList;
-    }
+    //     return this.portList;
+    // }
 
 
     private async openWebView() {
@@ -323,8 +325,8 @@ export class EGDBServer {
             this.panel.reveal(columnToShowIn);
         } else {
             this.panel = vscode.window.createWebviewPanel(
-                'eflash', // Identifies the type of the webview. Used internally
-                'EFlash config', // Title of the panel displayed to the user
+                'egdb_server', // Identifies the type of the webview. Used internally
+                'EEmbGDB Server Settings', // Title of the panel displayed to the user
                 vscode.ViewColumn.One, // Editor column to show the new webview panel in.
                 {
                     enableScripts: true
@@ -345,7 +347,7 @@ export class EGDBServer {
                         //vscode.window.showErrorMessage(message.text);
 
                         (async () => {
-                            const portList = await this.getPortList();
+                            const portList = await this.eflasher.getPortList();
                             if (this.panel) {
                                 this.panel.webview.postMessage({ command: 'setPortList', data: { 'ports': portList } });
                             }
@@ -353,7 +355,7 @@ export class EGDBServer {
                         )();
                         return;
                     }
-                    case 'flash': {
+                    case 'attach': {
                         (async () => {
 
                             const portId = message.data.portId;
@@ -363,30 +365,44 @@ export class EGDBServer {
                                 return;
                             }
 
-                            const isResetToDef = message.data.isResetToDef;
-                            const isForceErase = message.data.isForceErase;
+                            const serverPortId = message.data.serverPortId;
+
+                            if (serverPortId == '') {
+                                vscode.window.showErrorMessage('Invalid Server Port');
+                                return;
+                            }
 
                             const baudRateId = message.data.baudRateId;
                             const parityId = message.data.parityId;
                             const stopBitsId = message.data.stopBitsId;
 
-                            this.config.set('eflash.port', portId);
-                            this.config.set('eflash.isSetDefauls', isResetToDef);
-                            this.config.set('eflash.isForceErase', isForceErase);
-                            this.config.set('eflash.baudrate', baudRateId);
-                            this.config.set('eflash.parity', parityId);
-                            this.config.set('eflash.stopbits', stopBitsId);
+                            await this.config.set('eflash.port', portId);
+                            await this.config.set('eflash.baudrate', baudRateId);
+                            await this.config.set('eflash.parity', parityId);
+                            await this.config.set('eflash.stopbits', stopBitsId);
 
-                            const result = this.executeSever();
+                            
+                            
+                            const baudRateGdbId = message.data.baudRateGdbId;
+                            const parityGdbId = message.data.parityGdbId;
+                            const stopBitsGdbId = message.data.stopBitsGdbId;
+
+                            await this.config.set('gdbserver.port', serverPortId);
+                            await this.config.set('gdbserver.baudrate', baudRateGdbId);
+                            await this.config.set('gdbserver.parity', parityGdbId);
+                            await this.config.set('gdbserver.stopbits', stopBitsGdbId);
+
                             if (this.panel) {
                                 this.panel.dispose();
                             }
 
-                            result.then((val) => {
-                                if (!val) {
-                                    this.openWebView();
-                                }
-                            });
+                            const result = this.runGdbServer();//this.executeSever();
+                            
+                            // result.then((val) => {
+                            //     if (!val) {
+                            //         this.openWebView();
+                            //     }
+                            // });
                         })();
                         return;
                     }
@@ -397,22 +413,26 @@ export class EGDBServer {
         );
 
 
-        const portList = await this.getPortList();
+        const portList = await this.eflasher.getPortList();
 
         const portId = this.config.get<string>('eflash.port');
-
-        const isResetToDef = this.config.get<boolean>('eflash.isSetDefauls');
-        const isForceErase = this.config.get<boolean>('eflash.isForceErase');
 
         const baudRateId = this.config.get<string>('eflash.baudrate');
         const parityId = this.config.get<string>('eflash.parity');
         const stopBitsId = this.config.get<string>('eflash.stopbits');
 
+        const gdbServerPort = this.config.get<number>('gdbserver.port');
+        const gdbBaudrate = this.config.get<string>('gdbserver.baudrate');
+        const gdbParity = this.config.get<string>('gdbserver.parity');
+        const gdbStopbits = this.config.get<string>('gdbserver.stopbits');
+
         this.panel.webview.postMessage({
             command: 'setPortParams', data: {
                 'ports': portList,
-                'portId': portId, 'isResetToDef': isResetToDef, 'isForceErase': isForceErase,
-                'baudRateId': baudRateId, 'parityId': parityId, 'stopBitsId': stopBitsId
+                'portId': portId,
+                'baudRateId': baudRateId, 'parityId': parityId, 'stopBitsId': stopBitsId,
+                'serverPortId':gdbServerPort, 
+                'baudRateGdbId': gdbBaudrate, 'parityGdbId': gdbParity, 'stopBitsGdbId': gdbStopbits
             }
         });
 
@@ -428,8 +448,14 @@ export class EGDBServer {
             return;
         }
 
-        // this.openWebView();
+        this.openWebView();
 
+    }
+
+    public dropGdbServer() {
+        if (this.egdbServer && this.egdbServer.exitCode == null) {
+            this.egdbServer.kill();
+        }
     }
 
 
@@ -474,7 +500,7 @@ export class EGDBServer {
 				<link href="${styleVSCodeUri}" rel="stylesheet" />
 				<link href="${styleMainUri}" rel="stylesheet" />
 
-				<title>EFlash config</title>
+				<title>EEmbGDB Server Settings</title>
 			</head>
 			<body>
                 ${htmlBody}
