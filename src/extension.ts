@@ -365,7 +365,7 @@ export function activate(context: vscode.ExtensionContext) {
           EEPL_stackOfCommands = [];
         }
       }
-    } 
+    }
 
   });
 
@@ -448,13 +448,41 @@ export function activate(context: vscode.ExtensionContext) {
     const exec = await vscode.tasks.executeTask(task);
   }));
 
-  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.buildAndDebug', config => {
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.buildAndDebug', async () => {
+
+    const cPreset = config.get<string>('build.presets');
+    const isGenDbgInfo = config.get<string>('build.generateDbgInfo');
+
+    if (cPreset == 'Custom') {
+      if (!isGenDbgInfo) {
+        const buttons = ['Open settings'];
+        const choice = await vscode.window.showWarningMessage(`Start Debug session is aborted.\nThe App has't debug information.\nEnable 'eepl.build.generateDbgInfo' in extension settings`, { modal: true }, ...buttons);
+        if (choice == buttons[0]) {
+          vscode.commands.executeCommand('workbench.action.openWorkspaceSettings', `@ext:${extation?.id} eepl.build.generateDbgInfo`);
+        }
+        return;
+      }
+    } else if (cPreset.indexOf('Debug') == -1) {
+      const buttons = ['Select preset', 'Open settings'];
+      const choice = await vscode.window.showWarningMessage(`Start Debug session is aborted.\nThe App has't debug information.\nChange build preset to 'Debug' or Enable 'eepl.build.generateDbgInfo' in extension settings`, { modal: true }, ...buttons);
+      if (choice == buttons[0]) {
+        vscode.commands.executeCommand('eepl.command.setBuildPreset');
+      } else if (choice == buttons[1]) {
+        vscode.commands.executeCommand('workbench.action.openWorkspaceSettings', `@ext:${extation?.id} eepl.build.generateDbgInfo`);
+      }
+      return;
+    }
+
+
+    //cPreset.indexOf('Debug') != -1) {}
+
+
     let runRebuild = false;
     for (const file of vscode.workspace.textDocuments) {
       if (file.isDirty) {
         runRebuild = true;
         break;
-      } 
+      }
     }
 
     if (EEPL_isReqRebuild || EEPL_isBuildFailed || runRebuild) {
@@ -467,6 +495,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (EEPL_isFlashFailed) {
       EEPL_stackOfCommands.push('eepl.command.buildAndDebug');
       vscode.commands.executeCommand('eepl.command.buildAndFlash');
+      return;
     }
 
     eGdbServer.runGdbServer();
@@ -505,7 +534,7 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    eflashClient.flash((err)=>{
+    eflashClient.flash((err) => {
       if (!err) {
         const cmd = EEPL_stackOfCommands.pop();
         if (cmd) {
@@ -518,7 +547,7 @@ export function activate(context: vscode.ExtensionContext) {
           EEPL_stackOfCommands = [];
         }
       }
-        
+
     });
 
   }));
@@ -544,32 +573,32 @@ export function activate(context: vscode.ExtensionContext) {
       { label: "Settings", detail: "Open build settings", picked: false, description: " $(settings)" }
     ];
 
-    
+
 
 
     const curentPreset = config.get<string>('build.presets');
 
-      for (const variant of pickTargets) {
+    for (const variant of pickTargets) {
 
-        const isPicked = (curentPreset == variant.label);
-        const pickItem = isPicked ? '$(pass-filled)' : (variant.label != 'Settings' ? '$(circle-large-outline)' : "\t");
-        const detail = ` ${pickItem} ${variant.detail}`;
-        variant.detail = detail;
-        variant.picked = isPicked;
-      }
+      const isPicked = (curentPreset == variant.label);
+      const pickItem = isPicked ? '$(pass-filled)' : (variant.label != 'Settings' ? '$(circle-large-outline)' : "\t");
+      const detail = ` ${pickItem} ${variant.detail}`;
+      variant.detail = detail;
+      variant.picked = isPicked;
+    }
 
-      const target = await vscode.window.showQuickPick(
-        pickTargets,
-        { placeHolder: 'Select build preset', title: "Build preset" }
-      );
-  
-      if (target) {
-        if (target.label != 'Settings') {
-          config.set('build.presets', target.label);
-        } else {
-          vscode.commands.executeCommand('workbench.action.openWorkspaceSettings', `@ext:${extation?.id} eepl.build`);
-        }
+    const target = await vscode.window.showQuickPick(
+      pickTargets,
+      { placeHolder: 'Select build preset', title: "Build preset" }
+    );
+
+    if (target) {
+      if (target.label != 'Settings') {
+        config.set('build.presets', target.label);
+      } else {
+        vscode.commands.executeCommand('workbench.action.openWorkspaceSettings', `@ext:${extation?.id} eepl.build`);
       }
+    }
 
 
   }));
@@ -628,15 +657,15 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(sbSelectToolchain);
   sbDropDebugger.text = "[$(debug)$(close-all)]";
   sbDropDebugger.tooltip = "Drop Debugger and GDB Server";
-  
 
 
-  vscode.debug.onDidStartDebugSession((e)=>{
+
+  vscode.debug.onDidStartDebugSession((e) => {
     sbDropDebugger.show();
   });
 
-  vscode.debug.onDidTerminateDebugSession((e)=>{
-      sbDropDebugger.hide();
+  vscode.debug.onDidTerminateDebugSession((e) => {
+    sbDropDebugger.hide();
   });
 
 
@@ -665,7 +694,7 @@ export function activate(context: vscode.ExtensionContext) {
         config.set('build.presets', 'Custom');
       }
     }
-    
+
 
   }));
 
@@ -859,7 +888,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(TableEditorProvider.register(context));
 
 
- 
+
 
   // let factory = new InlineDebugAdapterFactory();
   // context.subscriptions.push(vscode.debug.registerDebugAdapterDescriptorFactory('eembdbg', factory));

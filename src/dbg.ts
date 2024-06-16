@@ -13,7 +13,6 @@ import Path = require('path');
 import { Config } from './config';
 
 import * as fs from 'fs';
-import { isFoundToolchain } from './tasks';
 
 
 export interface EasyDbgCfg extends DebugConfiguration {
@@ -58,19 +57,14 @@ async function checkDepencies(extName: string): Promise<boolean> {
 }
 
 
-//let isFoundToolchain = false;
+
 
 export async function runDebug(config: Config) {
 
 
-  if (!isFoundToolchain) {
-    const isFoundToolchain0 = await toolchain.checkToolchain();
-    if (!isFoundToolchain0)
-    {
-        vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
-        return new Promise((resolve, reject) => { reject(); });
-    }
-}
+  if (!(await toolchain.IsToolchainInstalled())) {
+    return new Promise((resolve, reject) => { reject(); });
+  }
 
 if (config.targetDevice.description == "[Device]")
 {

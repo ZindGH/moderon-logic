@@ -30,7 +30,7 @@ export enum EFlashCmd {
 export class EGDBServer {
 
 
-    private portList: string[] = [];
+    //private portList: string[] = [];
 
     private egdbServer: cp.ChildProcessByStdio<null, internal.Readable, internal.Readable> | undefined = undefined;
 
@@ -196,7 +196,7 @@ export class EGDBServer {
             }).on("error", (err) => {
                 this.isReady = false;
                 console.log("Error: ", err);
-                reject(new Error(`could not launch eflash: ${err}`));
+                reject(new Error(`could not launch EEmbGdb Server: ${err}`));
                 //return false;
             }).on("exit", (exitCode, _) => {
                 console.log("eGdbServer is closed");
@@ -387,7 +387,7 @@ export class EGDBServer {
                             const parityGdbId = message.data.parityGdbId;
                             const stopBitsGdbId = message.data.stopBitsGdbId;
 
-                            await this.config.set('gdbserver.port', serverPortId);
+                            await this.config.set('gdbserver.port', Number.parseInt(serverPortId, 10));
                             await this.config.set('gdbserver.baudrate', baudRateGdbId);
                             await this.config.set('gdbserver.parity', parityGdbId);
                             await this.config.set('gdbserver.stopbits', stopBitsGdbId);
@@ -414,6 +414,9 @@ export class EGDBServer {
 
 
         const portList = await this.eflasher.getPortList();
+        if (!portList.length) {
+            console.log("wtf");
+        }
 
         const portId = this.config.get<string>('eflash.port');
 

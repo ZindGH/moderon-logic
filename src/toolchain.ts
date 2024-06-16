@@ -769,6 +769,23 @@ export async function getToolchains(): Promise<ToolchainInfo[] | undefined> {
 }
 
 
+export var isFoundToolchain = false;
+
+
+export async function IsToolchainInstalled(): Promise<boolean> {
+
+    if (!isFoundToolchain) {
+      isFoundToolchain = await checkToolchain();
+      if (!isFoundToolchain)
+      {
+          vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
+          return false;//new Promise((resolve, reject) => { reject(); });
+      }
+  }
+
+  return true;
+
+}
 
 
 

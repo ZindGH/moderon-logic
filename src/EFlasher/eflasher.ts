@@ -230,7 +230,7 @@ export class EFlasherClient {
                     const stepProg = this.currentProgress - prevProgress;
                     prevProgress = this.currentProgress;
                     progress.report({ message: `${this.currentProgress}%`, increment: stepProg });
-                    console.log("Increment: "+stepProg);
+                    //console.log("Increment: "+stepProg);
                 }
 
                 if (token.isCancellationRequested) {
