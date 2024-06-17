@@ -1,8 +1,8 @@
 {
-    "name": "moderon_logic",
+    "name": "moderon-logic",
     "displayName": "Moderon Logic",
-    "description": "EEmbLang (EEPL) Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
-    "version": "0.8.8",
+    "description": "EEPL (Easy Embedded sytems Programming Language) Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
+    "version": "0.9.0",
     "icon": "icon.png",
     "repository": {
         "url": "https://github.com/Retrograd-Studios/vscode-eemblang.git",
@@ -10,7 +10,7 @@
     },
     "publisher": "Retrograd-Studios",
     "engines": {
-        "vscode": "^1.72.0"
+        "vscode": "^1.75.0"
     },
     "keywords": [
         "eepl",
@@ -30,10 +30,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onDebug",
-        "onLanguage:eepl",
-        "onCommand:eepl.command.createNewProject",
-        "onCommand:eepl.command.createProjectFromExample"
+        "onDebug"
     ],
     "main": "./dist/extension.js",
     "scripts": {
@@ -297,6 +294,11 @@
             {
                 "command": "eepl.command.createProjectFromExample",
                 "title": "Create project from example",
+                "category": "EEPL"
+            },
+            {
+                "command": "eepl.command.installToolchain",
+                "title": "Install toolchain",
                 "category": "EEPL"
             },
             {

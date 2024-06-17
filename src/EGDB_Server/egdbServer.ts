@@ -17,6 +17,8 @@ import net = require('net');
 import { runDebug } from '../dbg';
 import { EFlasherClient } from '../EFlasher/eflasher';
 
+
+
 //const posixPath = nodePath.posix || nodePath;
 
 
@@ -39,6 +41,8 @@ export class EGDBServer {
     public isReady = false;
 
     private panel: vscode.WebviewPanel | undefined = undefined;
+
+    private eGdbTerminal = new EEmbGdbBridgeTaskTerminal("");
 
     constructor(
         private readonly config: Config,
@@ -191,15 +195,20 @@ export class EGDBServer {
 
         const promiseExec = new Promise((resolve, reject) => {
 
+            const terminal = vscode.window.createTerminal({ name: 'EEmbGdbBridge', pty: this.eGdbTerminal });
+            
+
             this.egdbServer = cp.spawn(path, ["-p", gdbServerPort.toString(10)], {
                 stdio: ["ignore", "pipe", "pipe"], cwd: nodePath.dirname(path)
             }).on("error", (err) => {
                 this.isReady = false;
                 console.log("Error: ", err);
+                terminal.dispose();
                 reject(new Error(`could not launch EEmbGdb Server: ${err}`));
                 //return false;
             }).on("exit", (exitCode, _) => {
                 console.log("eGdbServer is closed");
+                terminal.dispose();
                 this.isReady = false;
                 if (exitCode == 0) {   
                     resolve("Done");
@@ -207,11 +216,16 @@ export class EGDBServer {
                 else {
                     reject(new Error(`exit code: ${exitCode}.`));
                 }
+            }).on('spawn', ()=>{
+                terminal.show();
+                this.eGdbTerminal.clear();
             });
+
 
 
             this.egdbServer.stdout.on("data", (chunk) => {
                 console.log(chunk.toString());
+                this.eGdbTerminal.log(`stdout: ${chunk.toString()}`);
             });
 
             // this.egdbServer.stdout.on("data", (chunk) => {
@@ -222,6 +236,7 @@ export class EGDBServer {
             rl.on("line", (line) => {
 
                 console.log(line);
+                this.eGdbTerminal.log(line);
 
                 if (line.indexOf("INFO gdb-server.c: Listening at") != -1) {
                     if (result == undefined && !client.connecting) {
@@ -255,19 +270,12 @@ export class EGDBServer {
 
             token.onCancellationRequested(() => {
                 result = false;
-                if (this.egdbServer && this.egdbServer.exitCode == null) {
-                    this.egdbServer.kill();
-                }
             });
 
             while (result == undefined) {
 
                 if (token.isCancellationRequested) {
-                    result = false;
-                    if (this.egdbServer && this.egdbServer.exitCode == null) {
-                        this.egdbServer.kill();
-                    }
-                    
+                    result = false;                    
                 }
 
                 await new Promise(f => setTimeout(f, 500));
@@ -280,6 +288,12 @@ export class EGDBServer {
         if (!client.destroyed) {
             client.end();
             //client.destroy();
+        }
+
+        if (!result) {
+            if (this.egdbServer && this.egdbServer.exitCode == null) {
+                this.egdbServer.kill();
+            }
         }
 
         this.isBusy = false;
@@ -512,5 +526,76 @@ export class EGDBServer {
 			</html>`;
     }
 
+
+}
+
+
+class EEmbGdbBridgeTaskTerminal implements vscode.Pseudoterminal {
+
+    private defaultLine = "→ ";
+    private keys = {
+        enter: "\r",
+        backspace: "\x7f",
+    };
+
+    private actions = {
+        cursorBack: "\x1b[D",
+        deleteChar: "\x1b[P",
+        clear: "\x1b[2J\x1b[3J\x1b[;H",
+    };
+
+	private writeEmitter = new vscode.EventEmitter<string>();
+	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
+	private closeEmitter = new vscode.EventEmitter<number>();
+	onDidClose?: vscode.Event<number> = this.closeEmitter.event;
+
+	//private fileWatcher: vscode.FileSystemWatcher | undefined;
+
+	// constructor(private workspaceRoot: string, private flavor: string, private flags: string[], private getSharedState: () => string | undefined, private setSharedState: (state: string) => void) {
+	// }
+
+	// open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+	// 	// At this point we can start using the terminal.
+	// 	if (this.flags.indexOf('watch') > -1) {
+	// 		const pattern = nodePath.join(this.workspaceRoot, 'customBuildFile');
+	// 		this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
+	// 		this.fileWatcher.onDidChange(() => this.doBuild());
+	// 		this.fileWatcher.onDidCreate(() => this.doBuild());
+	// 		this.fileWatcher.onDidDelete(() => this.doBuild());
+	// 	}
+	// 	//this.doBuild();
+	// }
+
+    constructor(private workspaceRoot: string) {
+    }
+
+    onDidOverrideDimensions?: vscode.Event<vscode.TerminalDimensions | undefined> | undefined;
+    onDidChangeName?: vscode.Event<string> | undefined;
+
+    open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+        throw new Error('Method not implemented.');
+    }
+    handleInput?(data: string): void {
+        console.log(data);
+        //throw new Error('Method not implemented.');
+    }
+    setDimensions?(dimensions: vscode.TerminalDimensions): void {
+        //throw new Error('Method not implemented.');
+    }
+
+	close(): void {
+		// The terminal has been closed. Shutdown the build.
+		// if (this.fileWatcher) {
+		// 	this.fileWatcher.dispose();
+		// }
+	}
+
+    log(data: string): void {
+        this.writeEmitter.fire(`${data}\r\n`);
+    }
+
+    clear(): void {
+		this.writeEmitter.fire(this.actions.clear);
+	}
 
 }

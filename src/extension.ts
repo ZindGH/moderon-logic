@@ -10,74 +10,22 @@ import * as cp from "child_process";
 
 import { Config } from "./config";
 import { activateTaskProvider, createTask } from "./tasks";
-import { isEasyDocument, execute } from "./util";
+import { isEasyDocument } from "./util";
 
 import * as readline from "readline";
 
-import { EasyConfigurationProvider, runDebug } from "./dbg";
+import { EasyConfigurationProvider } from "./dbg";
 
 import * as os from "os";
 
-import { TableEditorProvider } from './ModbusEditor/tableEditor';
-
 
 import { URL } from 'url';
-import { resolve } from 'path';
-import fetch from 'node-fetch';
-import { ToolchainsFile } from './toolchain';
 import { checkPackages } from './packages';
-import { execArgv } from 'process';
 import { createNewProject, selectExamples } from './examples';
 import { EFlasherClient } from './EFlasher/eflasher';
 import { EGDBServer } from './EGDB_Server/egdbServer';
 
-//import { resolve } from 'path';
 
-
-async function downloadFile0(url: string | URL | https.RequestOptions, targetFile: fs.PathLike, callback: () => void) {
-  return new Promise((resolve, reject) => {
-
-
-    https.get(url, response => {
-
-      const code = response.statusCode ?? 0
-
-      if (code >= 400) {
-        return reject(new Error(response.statusMessage))
-      }
-
-      // handle redirects
-      if (code > 300 && code < 400 && !!response.headers.location) {
-        return downloadFile0(response.headers.location, targetFile, callback)
-      }
-
-      const length = response.headers['content-length'];
-      console.log(length);
-
-      // save the file to disk
-      const fileWriter = fs
-        .createWriteStream(targetFile)
-      // .on('finish', () => {
-      //   //console.log("done");
-      //   callback();
-      //   resolve({});
-      //})
-
-      response.on('data', (chunk) => {
-        const buffer = chunk as Buffer;
-        console.log("chunk", chunk);
-      })
-      response.pipe(fileWriter);
-      //response.on('data')
-
-
-    }).on('error', error => {
-      console.log("err");
-      reject(error)
-    })
-  });
-
-}
 
 
 
@@ -252,14 +200,14 @@ let EEPL_isReqRebuild = true;
 export function activate(context: vscode.ExtensionContext) {
 
 
-  console.log("Hello, World!");
+  //console.log("Hello, World!");
 
   // (async () => {
   //   EFlasherClient.getPortList();
   // })();
 
 
-  let extation = vscode.extensions.getExtension("Retrograd-Studios.moderon_logic");
+  let extation = vscode.extensions.getExtension("Retrograd-Studios.moderon-logic");
 
   console.log(extation);
 
@@ -370,7 +318,10 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   vscode.workspace.onDidSaveTextDocument((e) => {
-    EEPL_isReqRebuild = true;
+    if (e.fileName.indexOf("settings.json") == -1) {
+      EEPL_isReqRebuild = true;
+    }
+    
   });
 
   vscode.workspace.onDidSaveNotebookDocument((e) => {
@@ -406,6 +357,15 @@ export function activate(context: vscode.ExtensionContext) {
   //     value: 'source.es'
   //   });
   // }));
+
+
+  
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.installToolchain', async config => {
+
+    toolchain.checkToolchain();
+
+  }));
+
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.compileProject', async () => {
 
@@ -666,6 +626,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   vscode.debug.onDidTerminateDebugSession((e) => {
     sbDropDebugger.hide();
+    eGdbServer.dropGdbServer();
   });
 
 
@@ -885,7 +846,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.debug.registerDebugConfigurationProvider('eembdbg', provider));
 
 
-  context.subscriptions.push(TableEditorProvider.register(context));
+  //context.subscriptions.push(TableEditorProvider.register(context));
 
 
 
