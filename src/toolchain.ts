@@ -597,6 +597,8 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
   config.targetDevice = sTarget;
   config.set("target.device", sTarget);
 
+  resoleProductPaths(config);
+
 }
 
 

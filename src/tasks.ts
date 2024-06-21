@@ -195,6 +195,42 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
 
     }
 
+
+
+
+    const presets = config.get<string>("build.presets");
+
+    let addArgs: string[] = [];
+
+    let isGenDbgInfo = false;
+
+    if (presets == "Debug") {
+        addArgs = ["-g", "-O0"];
+        isGenDbgInfo = true;
+    } else if (presets == "OpDebug") {
+        addArgs = ["-g", "-O3"];
+        isGenDbgInfo = true;
+    } else if (presets == "Release") {
+        addArgs = ["-O3", "-drtc"];
+    } else if (presets == "Safe Release") {
+        addArgs = ["-O3"];
+    } else if (presets == "Custom") {
+        const opLevel = config.get<string>("build.optimization");
+        isGenDbgInfo = config.get<boolean>("build.generateDbgInfo");
+        const isRunTimeChecks = config.get<boolean>("build.runtimeChecks");
+        addArgs = [opLevel];
+        if (isGenDbgInfo) {
+            addArgs.push("-g");
+        }
+        if (!isRunTimeChecks) {
+            addArgs.push("-drtc");
+        }
+    }
+
+
+
+
+
     
     let ebuildArgs: string[] = [];
     if (isOldToolchain)
@@ -232,8 +268,15 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
         
         if (config.targetDevice.devName.indexOf("windows") != -1) {
 
-            linkerArgs = linkerArgs.concat(config.targetDevice.stdlib);
+            linkerArgs = linkerArgs.concat(config.targetDevice.stdlibs);
             linkerArgs = linkerArgs.concat(config.targetDevice.includePaths);
+            //linkerArgs = linkerArgs.concat([`/out:${exePath}`, `/debug`]);
+            linkerArgs.push(`/out:${exePath}`);
+
+            if (isGenDbgInfo) {
+                linkerArgs.push(`/debug`);
+            }
+
 
         } else {
 
@@ -241,7 +284,7 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
             const runTimelib = config.targetDevice.runtime.length > 0 ? `-l${config.targetDevice.runtime}` : "";
 
 
-            linkerArgs = linkerArgs.concat(config.targetDevice.stdlib);
+            linkerArgs = linkerArgs.concat(config.targetDevice.stdlibs);
             linkerArgs = linkerArgs.concat(config.targetDevice.includePaths);
 
 
@@ -272,30 +315,7 @@ export async function createTask(idx: number, config: Config): Promise<vscode.Ta
     
 
 
-    const presets = config.get<string>("build.presets");
-
-    let addArgs: string[] = [];
-
-    if (presets == "Debug") {
-        addArgs = ["-g", "-O0"];
-    } else if (presets == "OpDebug") {
-        addArgs = ["-g", "-O3"];
-    } else if (presets == "Release") {
-        addArgs = ["-O3", "-drtc"];
-    } else if (presets == "Safe Release") {
-        addArgs = ["-O3"];
-    } else if (presets == "Custom") {
-        const opLevel = config.get<string>("build.optimization");
-        const isGenDbgInfo = config.get<boolean>("build.generateDbgInfo");
-        const isRunTimeChecks = config.get<boolean>("build.runtimeChecks");
-        addArgs = [opLevel];
-        if (isGenDbgInfo) {
-            addArgs.push("-g");
-        }
-        if (!isRunTimeChecks) {
-            addArgs.push("-drtc");
-        }
-    }
+    
 
 
     const inputSourceFile = isOldToolchain ? 'main.es' : config.get<string>("build.inputFile");

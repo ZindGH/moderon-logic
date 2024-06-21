@@ -15,7 +15,7 @@ export class Config {
 
     context: vscode.ExtensionContext;
 
-    readonly extensionId = "YouTooLife.vscode-eemblang";
+    readonly extensionId = "Retrograd-Studios.moderon-logic";
     configureLang: vscode.Disposable | undefined;
 
     targetDevice: TargetInfo = {

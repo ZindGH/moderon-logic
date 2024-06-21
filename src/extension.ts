@@ -14,7 +14,7 @@ import { isEasyDocument } from "./util";
 
 import * as readline from "readline";
 
-import { EasyConfigurationProvider } from "./dbg";
+import { EasyConfigurationProvider, runDebug } from "./dbg";
 
 import * as os from "os";
 
@@ -340,17 +340,20 @@ export function activate(context: vscode.ExtensionContext) {
           const exec = await vscode.tasks.executeTask(task);
         
         } else {
+
+          
           
           EEPL_isBuildFailed = false;
           const cmd = EEPL_stackOfCommands.pop();
           if (cmd) {
             vscode.commands.executeCommand(cmd);
+          } else {
+            vscode.window.showInformationMessage(`The App '${config.exePath}' has been successfully compiled`);
           }
 
         }
         
-      }
-      else if (tsk.command == "ebuild" && e.exitCode == 0) {
+      } else if (tsk.command == "ebuild" && e.exitCode == 0) {
         EEPL_isBuildFailed = false;
         const cmd = EEPL_stackOfCommands.pop();
         if (cmd) {
@@ -449,6 +452,15 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }
 
+    const cPreset = config.get<string>('build.presets');
+    const isGenDbgInfo = config.get<string>('build.generateDbgInfo');
+
+    if (cPreset == 'Debug' || cPreset == 'OpDebug' 
+      || (cPreset == 'Custom' && isGenDbgInfo)) {
+      runDebug(config, true);
+      return;
+    }
+
     const task = await createTask(1, config).catch(() => { });
     if (!task) {
       return;
@@ -500,6 +512,11 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
+    if (config.targetDevice.periphInfo.isDesktop) {
+      runDebug(config, false);
+      return;
+    }
+
     if (EEPL_isFlashFailed) {
       EEPL_stackOfCommands.push('eepl.command.buildAndDebug');
       vscode.commands.executeCommand('eepl.command.buildAndFlash');
@@ -520,8 +537,14 @@ export function activate(context: vscode.ExtensionContext) {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.attach', () => {
-    //runDebug(config);
+
+    if (config.targetDevice.periphInfo.isDesktop) {
+      runDebug(config, false);
+      return;
+    }
+
     eGdbServer.runGdbServer();
+
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.buildAndFlash', () => {
@@ -554,7 +577,17 @@ export function activate(context: vscode.ExtensionContext) {
           EEPL_stackOfCommands.push(cmd);
         }
 
+        const task = new vscode.Task(
+          { type: 'eec', command: 'run' },
+           vscode.TaskScope.Workspace,
+          'run',
+          'eepl',
+          new vscode.ProcessExecution(config.exePath, [])
+        );
 
+        vscode.tasks.executeTask(task);
+
+        return;
 
     }
 
