@@ -19,7 +19,7 @@ import { EasyConfigurationProvider } from "./dbg";
 import * as os from "os";
 
 
-import { URL } from 'url';
+
 import { checkPackages } from './packages';
 import { createNewProject, selectExamples } from './examples';
 import { EFlasherClient } from './EFlasher/eflasher';
@@ -259,22 +259,56 @@ export function activate(context: vscode.ExtensionContext) {
 
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.progress', async config => {
-    vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "Downloading...",
-      cancellable: true
-    }, async (progress, token) => {
-      token.onCancellationRequested(() => {
-        console.log("User canceled the long running operation");
-      });
-      progress.report({ message: "Download...", increment: 0 });
 
-      for (var _i = 0; _i < 100; _i++) {
-        await new Promise(f => setTimeout(f, 100));
-        progress.report({ message: "Download...", increment: 1 });
-      }
+    const ws = vscode.workspace.workspaceFolders? vscode.workspace.workspaceFolders[0] : undefined;
 
-    });
+    // const debugConfig: vscode.DebugConfiguration = {
+    //   "name": "SimulatorWin64",
+		// 	"type": "cppvsdbg",
+		// 	"request": "launch",
+		// 	"program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
+		// 	"args": [`${ws?.uri.fsPath}/PackageInfo.es`, "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./output"],
+		// 	"stopAtEntry": false,
+		// 	"cwd": "${fileDirname}",
+		// 	"environment": []
+    //  };
+
+     const debugConfig: vscode.DebugConfiguration = {
+      // "type": "lldb-dap",
+			// "request": "launch",
+			// "name": "LLDSimulatorWin64",
+			// "program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
+			// "args": ["${workspaceFolder}/PackageInfo.es", "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./out/M72OD20R/output"],
+			// "cwd": "${fileDirname}"
+      "name": "SimulatorWin64",
+			"type": "lldb",
+			"request": "launch",
+			"program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
+			"args": [`${ws?.uri.fsPath}/PackageInfo.es`, "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./out/M72OD20R/output"],
+			"stopAtEntry": true,
+			"cwd": `${ws?.uri.fsPath}`,
+      "sourceLanguages": ["eepl", "es"]
+			// "environment": []
+     };
+  
+     vscode.debug.startDebugging(ws, debugConfig);
+
+    // vscode.window.withProgress({
+    //   location: vscode.ProgressLocation.Notification,
+    //   title: "Downloading...",
+    //   cancellable: true
+    // }, async (progress, token) => {
+    //   token.onCancellationRequested(() => {
+    //     console.log("User canceled the long running operation");
+    //   });
+    //   progress.report({ message: "Download...", increment: 0 });
+
+    //   for (var _i = 0; _i < 100; _i++) {
+    //     await new Promise(f => setTimeout(f, 100));
+    //     progress.report({ message: "Download...", increment: 1 });
+    //   }
+
+    // });
   })
 
   );
@@ -299,8 +333,22 @@ export function activate(context: vscode.ExtensionContext) {
         const exec = await vscode.tasks.executeTask(task);
       }
       else if (tsk.command == "link" && e.exitCode == 0) {
-        const task = await createTask(3, config);
-        const exec = await vscode.tasks.executeTask(task);
+
+        if (!config.targetDevice.periphInfo.isDesktop) {
+
+          const task = await createTask(3, config);
+          const exec = await vscode.tasks.executeTask(task);
+        
+        } else {
+          
+          EEPL_isBuildFailed = false;
+          const cmd = EEPL_stackOfCommands.pop();
+          if (cmd) {
+            vscode.commands.executeCommand(cmd);
+          }
+
+        }
+        
       }
       else if (tsk.command == "ebuild" && e.exitCode == 0) {
         EEPL_isBuildFailed = false;
@@ -486,13 +534,31 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }
 
-    EEPL_isFlashFailed = true;
+    
 
     if (EEPL_isReqRebuild || EEPL_isBuildFailed || runRebuild) {
       EEPL_stackOfCommands.push('eepl.command.buildAndFlash');
       vscode.commands.executeCommand('eepl.command.compileProject');
       return;
     }
+
+
+    if (config.targetDevice.periphInfo.isDesktop) {
+
+        const cmd = EEPL_stackOfCommands.pop();
+
+        if (cmd === 'eepl.command.buildAndDebug') {
+          vscode.commands.executeCommand(cmd);
+          return;
+        } else if (cmd) {
+          EEPL_stackOfCommands.push(cmd);
+        }
+
+
+
+    }
+
+    EEPL_isFlashFailed = true;
 
     eflashClient.flash((err) => {
       if (!err) {
@@ -700,8 +766,51 @@ export function activate(context: vscode.ExtensionContext) {
     targets.forEach(element => {
       const isPicked = (prevDev.description == element.description);
       const pickItem = isPicked ? '$(pass-filled)' : '$(circle-large-outline)';// '$(check)' : ' ';
-      const detail = ` ${pickItem}  $(device-mobile) [${element.periphInfo.uiCount} UIs, ${element.periphInfo.relayCount} Relays, ${element.periphInfo.aoCount} AOs, ${element.periphInfo.uartCount} COMs]   $(extensions) framework v${element.frameWorkVerA}.${element.frameWorkVerB}`;
-      pickTargets.push({ label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: element.description, _target: element });
+
+      // let platformIcon = '$(device-mobile)';
+
+      // if (element.periphInfo.isDesktop) {
+      //   if (element.devName.indexOf('windows') != -1) {
+      //     platformIcon = '$(vm)'
+      //   } else if (element.devName.indexOf('linux') != -1) {
+      //     platformIcon = '$(vm)'
+      //   }
+      // }
+      
+      // let deviceIcon = '$(device-mobile)';
+
+      // if (element.periphInfo.isDesktop) {
+      //   if (element.devName.indexOf('windows') != -1 ) {
+      //     deviceIcon = '$(terminal-powershell)'
+      //   } else if (element.devName.indexOf('linux') != -1) {
+      //     deviceIcon = '$(terminal-linux)'
+      //   }
+      // }
+
+
+      let deviceIcon = '$(device-mobile)';
+
+      if (element.periphInfo.isDesktop) {
+        if (element.devName.indexOf('windows') != -1) {
+          deviceIcon = '$(vm)'
+        } else if (element.devName.indexOf('linux') != -1) {
+          deviceIcon = '$(vm)'
+        }
+      }
+      
+      let platformIcon = '$(device-mobile)';
+
+      if (element.periphInfo.isDesktop) {
+        if (element.devName.indexOf('windows') != -1 ) {
+          platformIcon = '$(terminal-powershell)'
+        } else if (element.devName.indexOf('linux') != -1) {
+          platformIcon = '$(terminal-linux)'
+        }
+      }
+
+      const periphInfo = element.periphInfo.isDesktop ? '' : `[${element.periphInfo.uiCount} UIs, ${element.periphInfo.relayCount} Relays, ${element.periphInfo.aoCount} AOs, ${element.periphInfo.uartCount} COMs]`;
+      const detail = ` ${pickItem}   ${deviceIcon} ${periphInfo}   $(extensions) framework v${element.frameWorkVerA}.${element.frameWorkVerB}`;
+      pickTargets.push({ label: element.devName, detail: detail, devName: element.devName, picked: isPicked, description: `${element.description} ${platformIcon}`, _target: element });
     });
 
     const target = await vscode.window.showQuickPick(

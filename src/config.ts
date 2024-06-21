@@ -31,15 +31,37 @@ export class Config {
             relayCount: 6,
             uartCount: 8,
             uiCount: 11,
-            flashSize: 256*1024,
-            ramSize: 64*1024,
-            flashPageSize: 256
+            flashSize: 256 * 1024,
+            ramSize: 64 * 1024,
+            flashPageSize: 256,
+            isDesktop: false,
+            isResourcesInternal: false
         },
         stdlib: "armv7m",
-        runtime: "clang_rt.builtins-armv7m"
-      };
+        runtime: "clang_rt.builtins-armv7m",
+        stdlibs: [],
+        includePaths: []
+    };
+
+    productPath: string = "./out/output";
+    exePath: string = "./out/output";
+    uploadingFilePath: string = "./out/prog.alf";
+    productName: string = "output";
 
     readonly rootSection = "eepl";
+    // config: {
+    //     description: string; devManId: number; devName: string; frameWorkVerA: number; frameWorkVerB: number; triplet: string;
+    //     //     if (varName in supportedVariables) {
+    //     //         return supportedVariables[varName]();
+    //     //     } else {
+    //     //         // return "${" + varName + "}";
+    //     //         return null;
+    //     //     }
+    //     pathToFile: string; periphInfo: {
+    //         aoCount: number; relayCount: number; uartCount: number; uiCount: number; flashSize: number; //         return null;
+    //         ramSize: number; flashPageSize: number;
+    //     }; stdlib: string; runtime: string;
+    // };
     // private readonly requiresReloadOpts = [
     //     "easy",
     //     "procMacro",

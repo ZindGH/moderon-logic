@@ -303,7 +303,8 @@
             },
             {
                 "command": "eepl.command.progress",
-                "title": "example"
+                "title": "example",
+                "category": "EEPL"
             },
             {
                 "command": "eepl.command.compileProject",

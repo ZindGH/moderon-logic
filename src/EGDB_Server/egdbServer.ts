@@ -461,7 +461,7 @@ export class EGDBServer {
 
         const result = await this.executeSever();
         if (result) {
-            runDebug(this.config);
+            runDebug(this.config, false);
             return;
         }
 

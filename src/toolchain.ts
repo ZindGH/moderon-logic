@@ -184,6 +184,12 @@ export type ToolchainsFile = {
 }
 
 
+export type EECompilerOutput = {
+  libs: string[];
+  productName: string;
+}
+
+
 
 export let LastToolchain: ToolchainInfo | undefined = undefined;
 
@@ -418,7 +424,7 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
       if (token.isCancellationRequested) {
         return false;
       }
-      
+
     }
 
     result = await result0;
@@ -438,8 +444,8 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
   if (result) {
     const toolchainInfoFile = vscode.Uri.joinPath(toolchainDirPath, ".eec", "toolchain.json");
     //if (getVerToInt(toolchainInfo.ver) < getVerToInt("0.9.0")) {
-      const json = JSON.stringify(toolchainInfo).toString();
-      fs.writeFileSync(toolchainInfoFile.fsPath, json, { flag: "w" });
+    const json = JSON.stringify(toolchainInfo).toString();
+    fs.writeFileSync(toolchainInfoFile.fsPath, json, { flag: "w" });
     //}
     const toolchainTmpInfoFile = vscode.Uri.joinPath(
       vscode.Uri.file(homeDir),
@@ -462,6 +468,8 @@ type TargetPeriphInfo = {
   flashSize: number;
   ramSize: number;
   flashPageSize: number;
+  isDesktop: boolean;
+  isResourcesInternal: boolean;
 }
 
 export type TargetInfo = {
@@ -474,6 +482,8 @@ export type TargetInfo = {
   pathToFile: string;
   stdlib: string;
   runtime: string;
+  stdlibs: string[];
+  includePaths: string[];
   periphInfo: TargetPeriphInfo;
 }
 
@@ -525,12 +535,12 @@ export async function getTargets(): Promise<TargetInfo[]> {
 
 
 export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev: vscode.StatusBarItem) {
-  
+
   const cfgTarget = config.get<TargetInfo>('target.device');
 
   const targets = await getTargets();
 
-  let sTarget = {
+  let sTarget: TargetInfo = {
     description: "[Device]",
     devManId: 0,
     devName: "Select Target",
@@ -539,17 +549,21 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
     triplet: "thumbv7m-none-none-eabi",
     pathToFile: "",
     periphInfo: {
-        aoCount: 3,
-        relayCount: 6,
-        uartCount: 8,
-        uiCount: 11,
-        flashSize: 256*1024,
-        ramSize: 64*1024,
-        flashPageSize: 256
+      aoCount: 3,
+      relayCount: 6,
+      uartCount: 8,
+      uiCount: 11,
+      flashSize: 256 * 1024,
+      ramSize: 64 * 1024,
+      flashPageSize: 256,
+      isDesktop: false,
+      isResourcesInternal: false
     },
     stdlib: "armv7m",
+    includePaths: [],
+    stdlibs: [],
     runtime: "clang_rt.builtins-armv7m"
-};
+  };
 
 
 
@@ -557,8 +571,7 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
 
     for (const target of targets) {
 
-      if (target.pathToFile == cfgTarget.pathToFile)
-      {
+      if (target.pathToFile == cfgTarget.pathToFile) {
         sTarget = cfgTarget;
         break;
       }
@@ -567,10 +580,19 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
 
   }
 
-  
+
 
   //sbSelectTargetDev.text = `$(chip)[${sTarget.devName}]`;
-  sbSelectTargetDev.text = `$(device-mobile)[${sTarget.devName}]`;
+  let platformIcon = '$(device-mobile)';
+
+  if (sTarget.periphInfo.isDesktop) {
+    if (sTarget.devName.indexOf('windows') != -1) {
+      platformIcon = '$(terminal-powershell)'
+    } else if (sTarget.devName.indexOf('linux') != -1) {
+      platformIcon = '$(terminal-linux)'
+    }
+  }
+  sbSelectTargetDev.text = `${platformIcon}[${sTarget.devName}]`;
 
   config.targetDevice = sTarget;
   config.set("target.device", sTarget);
@@ -580,16 +602,16 @@ export async function checkAndSetCurrentTarget(config: Config, sbSelectTargetDev
 
 
 export async function setCurrentTarget(target: TargetInfo, config: Config, sbSelectTargetDev: vscode.StatusBarItem) {
-    config.targetDevice = target;
-    sbSelectTargetDev.text = `$(chip)[${target.devName}]`;
-    await config.set("target.device", target);
+  config.targetDevice = target;
+  sbSelectTargetDev.text = `$(chip)[${target.devName}]`;
+  await config.set("target.device", target);
 }
 
 
 
 
 export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolchain: vscode.StatusBarItem) {
-  
+
   //const cfgToolchain = config.get<ToolchainInfo>('toolchain.version');
 
   const currentToolchain = await getCurrentToolchain();
@@ -598,8 +620,7 @@ export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolch
     //sbSelectToolchain.text = currentToolchain.label;
     sbSelectToolchain.text = `$(extensions)`;
     sbSelectToolchain.tooltip = `Toolchain: ${currentToolchain.label}`;
-    if (LastToolchain != undefined && LastToolchain.ver != currentToolchain.ver)
-    {
+    if (LastToolchain != undefined && LastToolchain.ver != currentToolchain.ver) {
       //sbSelectToolchain.text += "(old version)";
       sbSelectToolchain.tooltip += "(old version)";
     }
@@ -607,9 +628,9 @@ export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolch
     await config.setGlobal('toolchain.version', currentToolchain);
   }
   else {
-      sbSelectToolchain.text = "Not installed!";
-      sbSelectToolchain.tooltip = "Select toolchain";
-      await config.setGlobal('toolchain.version', undefined);
+    sbSelectToolchain.text = "Not installed!";
+    sbSelectToolchain.tooltip = "Select toolchain";
+    await config.setGlobal('toolchain.version', undefined);
   }
 
 }
@@ -683,6 +704,16 @@ export async function checkAndSetCurrentToolchain(config: Config, sbSelectToolch
 //   return result;
 // }
 
+
+export async function checkOldToolchain(): Promise<boolean> {
+  const isOldToolchain = await getCurrentToolchain();
+  if (!isOldToolchain) {
+    return true;
+  }
+
+  return getVerToInt(isOldToolchain.ver) < getVerToInt('0.9.0');
+
+}
 
 
 
@@ -774,13 +805,12 @@ export var isFoundToolchain = false;
 
 export async function IsToolchainInstalled(): Promise<boolean> {
 
+  if (!isFoundToolchain) {
+    isFoundToolchain = await checkToolchain();
     if (!isFoundToolchain) {
-      isFoundToolchain = await checkToolchain();
-      if (!isFoundToolchain)
-      {
-          vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
-          return false;//new Promise((resolve, reject) => { reject(); });
-      }
+      vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
+      return false;//new Promise((resolve, reject) => { reject(); });
+    }
   }
 
   return true;
@@ -885,6 +915,92 @@ export async function getCurrentToolchain(): Promise<ToolchainInfo | undefined> 
 
   return currentToolchain;
 
+}
+
+
+export async function resoleProductPaths(config: Config) : Promise<boolean> {
+
+
+
+  let workspaceTarget: vscode.WorkspaceFolder | undefined = undefined;
+
+  for (const workspaceTarget0 of vscode.workspace.workspaceFolders || []) {
+    workspaceTarget = workspaceTarget0;
+    break;
+  }
+
+  if (config.targetDevice.description == "[Device]") {
+    await vscode.commands.executeCommand('eepl.command.setTargetDevice');
+    if (config.targetDevice.description == "[Device]") {
+      //return new Promise((resolve, reject) => { reject(); });
+      return false;
+    }
+  }
+
+
+  const devName = config.targetDevice.devName;
+  const cwd = "${cwd}";
+
+
+  const isOldToolchain = await checkOldToolchain();
+
+
+
+  const outputPath = isOldToolchain ? `${workspaceTarget!.uri.fsPath}/out/${devName}/output` : `${workspaceTarget!.uri.fsPath}/out/${devName}`;
+
+
+
+  let productName = 'output';
+  let productPath = `${outputPath}`;
+
+  if (!isOldToolchain) {
+
+    const compilerOutputPath = `${outputPath}/.eec_cache/EECompilerOutput.json`;
+
+    if (fs.existsSync(compilerOutputPath)) {
+
+      const rowFile = fs.readFileSync(compilerOutputPath).toString();
+      const eecOutput: EECompilerOutput = JSON.parse(rowFile);
+
+      productName = eecOutput.productName;
+      productPath = `${productPath}/${productName}`;
+
+    } else {
+      productPath = `${productPath}/output`;
+    }
+
+
+  }
+
+
+  if (isOldToolchain) {
+
+    config.uploadingFilePath = `${cwd}/out/${devName}/prog.alf`;
+    config.exePath = `${cwd}/out/${devName}/output.elf`;
+    config.productPath = `${productPath}/output`;
+    config.productName = productName;
+
+  }
+  else {
+
+    config.uploadingFilePath = `${productPath}.alf`;
+    config.productPath = `${productPath}`;
+    config.productName = productName;
+
+
+    if (config.targetDevice.devName.indexOf("windows") != -1) {
+
+      config.exePath = `${productPath}.exe`;
+
+
+    } else {
+
+      config.exePath = `${productPath}.elf`;
+    }
+
+  }
+
+  return true;
 }
 
 

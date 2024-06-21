@@ -6,6 +6,8 @@ import { WorkspaceFolder, DebugConfiguration, ProviderResult, CancellationToken 
 
 import * as readline from "readline";
 
+import * as os from "os";
+
 import * as toolchain from './toolchain';
 
 import * as cp from "child_process";
@@ -59,7 +61,7 @@ async function checkDepencies(extName: string): Promise<boolean> {
 
 
 
-export async function runDebug(config: Config) {
+export async function runDebug(config: Config, isSimulator: boolean) {
 
 
   if (!(await toolchain.IsToolchainInstalled())) {
@@ -76,7 +78,13 @@ if (config.targetDevice.description == "[Device]")
 }
   
 
-  const extName = "marus25.cortex-debug";
+  let extName = "marus25.cortex-debug"; 
+  
+  if ( (isSimulator && os.type() === "Windows_NT") || config.targetDevice.devName.indexOf("windows") != -1 )
+  {
+    extName = "ms-vscode.cpptools";
+  }
+  
 
   const isCanDebug = await checkDepencies(extName);
 
@@ -84,10 +92,97 @@ if (config.targetDevice.description == "[Device]")
     return;
   }
 
+  const ws = vscode.workspace.workspaceFolders? vscode.workspace.workspaceFolders[0] : undefined;
+
+    if (!ws) {
+      vscode.window.showErrorMessage('Workspace is not opened.');
+      return false;
+    }
+
+
+  if ( (isSimulator && os.type() === "Windows_NT") ) {
+
+
+
+    const presets = config.get<string>("build.presets");
+
+    let addArgs: string[] = [];
+
+    if (presets == "Debug") {
+        addArgs = ["-g", "-O0"];
+    } else if (presets == "OpDebug") {
+        addArgs = ["-g", "-O3"];
+    } else if (presets == "Release") {
+        //addArgs = ["-O3", "-drtc"];
+        return;
+    } else if (presets == "Safe Release") {
+      return;
+        //addArgs = ["-O3"];
+    } else if (presets == "Custom") {
+        const opLevel = config.get<string>("build.optimization");
+        const isGenDbgInfo = config.get<boolean>("build.generateDbgInfo");
+        const isRunTimeChecks = config.get<boolean>("build.runtimeChecks");
+        addArgs = [opLevel];
+        if (isGenDbgInfo) {
+            addArgs.push("-g");
+        } else {
+          return;
+        }
+        if (!isRunTimeChecks) {
+            addArgs.push("-drtc");
+        }
+    }
+
+
+    const targetFile = config.targetDevice.pathToFile;
+    const devName = config.targetDevice.devName;
+
+    const dbgArgs = isSimulator ?
+      [
+        "-target", `${targetFile}`, 
+        "-triplet", config.targetDevice.triplet,
+        "-S", "-jit", "-emit-llvm",
+      ].concat(addArgs)
+    : [];
+
+    const inputSourceFile = config.get<string>("build.inputFile");
+    const outputPath = `${ws.uri.fsPath}/out/${devName}`;
+
+    const dbgArgs2 = (isSimulator) ? 
+        [`${ws.uri.fsPath}/${inputSourceFile}`].concat(dbgArgs).concat(["-o", `${outputPath}`]) : dbgArgs;
+    
+    const homeDir = os.type() === "Windows_NT" ? os.homedir() : os.homedir();
+    const exePath = isSimulator ? vscode.Uri.joinPath(vscode.Uri.file(homeDir), 
+          ".eec", "bin", os.type() === "Windows_NT" ? `eec.exe` : 'eec')
+          : vscode.Uri.file(config.exePath);
+
+    const task = new vscode.Task(
+      {type: 'eec', command: isSimulator ? 'simulate' : 'run'},
+        ws ?? vscode.TaskScope.Workspace,
+        isSimulator ? 'Run Simulator' : 'run',
+        'eepl',
+        new vscode.ProcessExecution(exePath.fsPath, dbgArgs2)
+    );
+
+    const debugConfig: vscode.DebugConfiguration = {
+      "name": isSimulator ? "SimulatorWin64-dbg" : "x64-windows-dbg",
+			"type": "cppvsdbg",
+			"request": "launch",
+			"program": exePath.fsPath,
+			"args": dbgArgs2,
+			"stopAtEntry": false,
+			"cwd": "${fileDirname}",
+			"environment": []
+     };
+
+     vscode.debug.startDebugging(ws, debugConfig);
+
+     return;
+
+  }
+
   
-    // const workspace = vscode.workspace.workspaceFolders![0];
-
-
+ 
     const pathToArmToolchain = await toolchain.getPathForExecutable("arm-none-eabi-gdb");
     
     if (!pathToArmToolchain) {
@@ -95,17 +190,8 @@ if (config.targetDevice.description == "[Device]")
       return;
     }
 
-    let progPath = "./";
+    let progPath = config.exePath;
 
-    const ws = vscode.workspace.workspaceFolders? vscode.workspace.workspaceFolders[0] : undefined;
-            if (!ws) {
-                vscode.window.showErrorMessage('Workspace is not opened.');
-                return false;
-            }
-
-            const cwd = ws.uri.fsPath;//"${cwd}";
-            const devName = config.targetDevice.devName;
-            progPath = `${cwd}/out/${devName}/output.elf`;
 
             if (!fs.existsSync(progPath)) {
                 const options: vscode.OpenDialogOptions = {
@@ -130,9 +216,6 @@ if (config.targetDevice.description == "[Device]")
 
     const DirPathToArmToolchain = Path.dirname(pathToArmToolchain);
 
-    //const devName = config.targetDevice.devName;
-    //const cwd = "${cwd}";
-    //const targetExe = `${cwd}/out/${devName}/output.elf`;
 
     const gdbServerPort = config.get<number>('gdbserver.port');
   
