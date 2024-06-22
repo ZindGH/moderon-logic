@@ -728,7 +728,7 @@ async function getLastToolchainInfo(): Promise<ToolchainInfo | undefined> {
 
   let lastToolchain: ToolchainInfo | undefined = undefined;
 
-  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e) => {
+  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/master/toolchain.json").catch((e) => {
     console.log(e);
     return undefined;
   });
@@ -761,7 +761,7 @@ export async function getToolchains(): Promise<ToolchainInfo[] | undefined> {
 
   let lastToolchain: ToolchainInfo | undefined = undefined;
 
-  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/main/toolchain.json").catch((e) => {
+  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/master/toolchain.json").catch((e) => {
     console.log(e);
     return undefined;
   });
