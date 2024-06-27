@@ -58,6 +58,8 @@ export class EGDBServer {
             return false;
         }
 
+        await toolchain.resoleProductPaths(this.config);
+
         this.isBusy = true;
 
         if (this.egdbServer && this.egdbServer.exitCode == null) {

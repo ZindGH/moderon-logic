@@ -48,6 +48,8 @@ export class EFlasherClient {
             return false;
         }
 
+        await toolchain.resoleProductPaths(this.config);
+
         this.isBusy = true;
 
         const path = await toolchain.getPathForExecutable("eflash");
