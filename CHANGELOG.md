@@ -1,9 +1,4 @@
-# Change Log
+# EEPL (Easy Embedded sytems Programming Language) Extension Changelog
 
-All notable changes to the "eemblang" extension will be documented in this file.
-
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
-- Initial release
+## Version 0.9.7: August 21, 2024
+* Fixed rebuild request after changing Target Device/Platform, changing 'Build preset', and installing another Toolchain version.

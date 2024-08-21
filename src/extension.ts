@@ -455,6 +455,8 @@ export function activate(context: vscode.ExtensionContext) {
     const cPreset = config.get<string>('build.presets');
     const isGenDbgInfo = config.get<string>('build.generateDbgInfo');
 
+    //EEPL_isReqRebuild = true;
+
     if (cPreset == 'Debug' || cPreset == 'OpDebug' 
       || (cPreset == 'Custom' && isGenDbgInfo)) {
       runDebug(config, true);
@@ -736,6 +738,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
     if (e.affectsConfiguration('eepl.target.device')) {
+      EEPL_isReqRebuild = true;
       if (config.targetDevice != config.get<toolchain.TargetInfo>("target.device")) {
         toolchain.checkAndSetCurrentTarget(config, sbSelectTargetDev);
       }
@@ -743,6 +746,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 
     if (e.affectsConfiguration('eepl.toolchain.version')) {
+      EEPL_isReqRebuild = true;
       toolchain.checkAndSetCurrentToolchain(config, sbSelectToolchain);
     }
 
