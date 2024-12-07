@@ -527,7 +527,12 @@
                             "Two stop bits"
                         ],
                         "description": "GDB SerialPort Bridge StopBits"
-                    }
+                    },
+                    "eepl.lsp.port": {
+                        "type": "number",
+                        "default": 9091,
+                        "description": "Port for EEPL Language Server"
+				    }
                 }
             }
         ],
@@ -570,6 +575,7 @@
         "fs-extra": "^11.2.0",
         "node-fetch": "^3.3.0",
         "unzip-stream": "^0.3.4",
-        "vsce": "^2.15.0"
+        "@vscode/vsce": "^3.2.1",
+        "vscode-languageclient": "^9.0.1"
     }
 }
