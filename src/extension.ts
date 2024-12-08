@@ -462,30 +462,30 @@ export function activate(context: vscode.ExtensionContext) {
 	// vscode.window.showInformationMessage(`Starting LSP client on port: ` + serverPort);  // Отправим пользователю информацию о запуске расширения
 
 
-  executeLsp();
+  // executeLsp();
 
-	// const connectionInfo = {
-  //     port: Number(serverPort),
-	// 	  host: "localhost"
-  //   };
-  //   const serverOptions = () => {
-  //       // Подключение по сокету
-  //       const socket = net.connect(connectionInfo);
-  //       socket.addListener("error", (err) => {
-  //         console.log(err.message);
-  //       })
-  //       socket.addListener("timeout", () => {
-  //         console.log("timout");
-  //       })
-  //       socket.addListener("connect", () => {
-  //         console.log("conecteed");
-  //       })
-  //       const result: StreamInfo = {
-  //           writer: socket,
-  //           reader: socket
-  //       };
-  //       return Promise.resolve(result);
-  //   };
+	const connectionInfo = {
+      port: Number(serverPort),
+		  host: "localhost"
+    };
+    const serverOptions = () => {
+        // Подключение по сокету
+        const socket = net.connect(connectionInfo);
+        socket.addListener("error", (err) => {
+          console.log(err.message);
+        })
+        socket.addListener("timeout", () => {
+          console.log("timout");
+        })
+        socket.addListener("connect", () => {
+          console.log("conecteed");
+        })
+        const result: StreamInfo = {
+            writer: socket,
+            reader: socket
+        };
+        return Promise.resolve(result);
+    };
 
   // outputChannel.show(true);
   // traceOutputChannel.show(true);
@@ -519,28 +519,28 @@ export function activate(context: vscode.ExtensionContext) {
   // };
 
   // // Options to control the language client
-  // let clientOptions: LanguageClientOptions = {
-  //   // Register the server for plain text documents
-  //   documentSelector: [{ scheme: 'file', language: 'eepl' }],
-  //   synchronize: {
-	// 		fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
-	// 	},
-  //   outputChannel: outputChannel,
-  //   // revealOutputChannelOn: RevealOutputChannelOn.Never,
-  //   traceOutputChannel: traceOutputChannel
-  //   // synchronize: {
-  //   //   // Notify the server about file changes to '.clientrc files contained in the workspace
-  //   //   fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
-  //   // }
-  // };
+  let clientOptions: LanguageClientOptions = {
+    // Register the server for plain text documents
+    documentSelector: [{ scheme: 'file', language: 'eepl' }],
+    synchronize: {
+			fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
+		},
+    outputChannel: outputChannel,
+    // revealOutputChannelOn: RevealOutputChannelOn.Never,
+    traceOutputChannel: traceOutputChannel
+    // synchronize: {
+    //   // Notify the server about file changes to '.clientrc files contained in the workspace
+    //   fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
+    // }
+  };
 
   // // Create the language client and start the client.
-  // client = new LanguageClient(
-  //   'eepl-vscode-lsclient',
-  //   'EEPL LS Client',
-  //   serverOptions,
-  //   clientOptions
-  // );
+  client = new LanguageClient(
+    'eepl-vscode-lsclient',
+    'EEPL LS Client',
+    serverOptions,
+    clientOptions
+  );
 
   // // const disposeDidChange = client.onDidChangeState(
   // //   (stateChangeEvent) => {
@@ -556,7 +556,7 @@ export function activate(context: vscode.ExtensionContext) {
   // //   }
   // // );
 
-  // let disposable = client.start();
+  let disposable = client.start();
 //   context.subscriptions.push(disposable);
   
 //   this.languageClient.onReady().then(() => {
