@@ -315,29 +315,34 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
                   });
 
                   unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', async () => {
-                    let binPath = vscode.Uri.joinPath(toolchainDirPath, ".eec", "bin");
 
-                    await vscode.workspace.fs.readDirectory(binPath).then((files) => {
-                      files.forEach(element => {
-                        const subFile = vscode.Uri.joinPath(binPath, element[0]).fsPath;
+                    if (os.platform().toString() != 'win32') {
+                      let binPath = vscode.Uri.joinPath(toolchainDirPath, ".eec", "bin");
 
-                        try {
-                          const fd = fs.openSync(subFile, 'r+');
-                          fs.fchmodSync(fd, 0o777);
-                          fs.closeSync(fd);
-                          if (element[0] != 'lld' && element[0].indexOf("lld") != -1) {
-                            fs.rmSync(subFile, {force: true});
-                            fs.symlinkSync('lld', subFile, 'file');
+                      await vscode.workspace.fs.readDirectory(binPath).then((files) => {
+                        files.forEach(element => {
+                          const subFile = vscode.Uri.joinPath(binPath, element[0]).fsPath;
+
+                          try {
+                            const fd = fs.openSync(subFile, 'r+');
+                            fs.fchmodSync(fd, 0o777);
+                            fs.closeSync(fd);
+                            if (element[0] != 'lld' && element[0].indexOf("lld") != -1) {
+                              fs.rmSync(subFile, { force: true });
+                              fs.symlinkSync('lld', subFile, 'file');
+                            }
+                          } catch (e) {
+                            vscode.window.showErrorMessage(`Can't open file ${subFile} to set file permission`, ...['Ok']);
+                            return;
                           }
-                        } catch (e) {
-                          vscode.window.showErrorMessage(`Can't open file ${subFile} to set file permission`, ...['Ok']);
-                          return;
-                        }
 
+                        });
+                      }, () => {
+                        console.log("err");
                       });
-                    }, () => {
-                      console.log("err");
-                    });
+                    }
+
+
                     vscode.window.showInformationMessage(`Toolchain has been successuly installed!`, ...['Ok']);
                     isTerminated = true;
                   });
@@ -409,33 +414,32 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
 
         unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', async () => {
 
+          if (os.platform().toString() != 'win32') {
+            let binPath = vscode.Uri.joinPath(toolchainDirPath, ".eec", "bin");
 
-          const binPath = vscode.Uri.joinPath(toolchainDirPath, ".eec", "bin");
-          // const lldPath = vscode.Uri.joinPath(binPath, 'lld').fsPath;
+            await vscode.workspace.fs.readDirectory(binPath).then((files) => {
+              files.forEach(element => {
+                const subFile = vscode.Uri.joinPath(binPath, element[0]).fsPath;
 
-          await vscode.workspace.fs.readDirectory(binPath).then((files) => {
-            files.forEach(element => {
-
-              const subFile = vscode.Uri.joinPath(binPath, element[0]).fsPath;
-
-              try {
-                const fd = fs.openSync(subFile, 'r+');
-                fs.fchmodSync(fd, 0o777);
-                fs.closeSync(fd);
-
-                if (element[0] != 'lld' && element[0].indexOf("lld") != -1) {
-                  fs.rmSync(subFile, {force: true});
-                  fs.symlinkSync('lld', subFile, 'file');
+                try {
+                  const fd = fs.openSync(subFile, 'r+');
+                  fs.fchmodSync(fd, 0o777);
+                  fs.closeSync(fd);
+                  if (element[0] != 'lld' && element[0].indexOf("lld") != -1) {
+                    fs.rmSync(subFile, { force: true });
+                    fs.symlinkSync('lld', subFile, 'file');
+                  }
+                } catch (e) {
+                  vscode.window.showErrorMessage(`Can't open file ${subFile} to set file permission`, ...['Ok']);
+                  return;
                 }
-              } catch (e) {
-                vscode.window.showErrorMessage(`Can't open file ${subFile} to set file permission`, ...['Ok']);
-                return;
-              }
 
+              });
+            }, () => {
+              console.log("err");
             });
-          }, () => {
-            console.log("err");
-          });
+          }
+
           vscode.window.showInformationMessage(`Toolchain has been successuly installed!`, ...['Ok']);
           isTerminated = true;
         });

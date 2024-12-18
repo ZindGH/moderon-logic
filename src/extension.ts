@@ -449,13 +449,28 @@ export function activate(context: vscode.ExtensionContext) {
   console.log(extation);
 
   let config = new Config(context);
-  if (os.platform().toString() === "windows") {
-    config.hostTriplet = `${os.arch()}-win`;
+  if (os.platform().toString() === "win32") {
+    config.hostTriplet = `${os.arch()}-windows`;
   } else {
     config.hostTriplet = `${os.arch()}-${os.platform()}`;
   }
 
   console.log(`triplet: ${config.hostTriplet}`);
+
+  const supportedTriplet = ['x64-windows', 'x64-linux'];
+
+  let isSupportedHost = false;
+  for (const tripletName of supportedTriplet) {
+    if (tripletName === config.hostTriplet) {
+      isSupportedHost = true;
+      break;
+    }
+  }
+
+  if (!isSupportedHost) {
+    vscode.window.showErrorMessage(`This extension not support current host machine (${config.hostTriplet})!`, ...['OK']);
+    return;
+  }
 
   let eflashClient = new EFlasherClient(config, context);
   let eGdbServer = new EGDBServer(config, context, eflashClient);
