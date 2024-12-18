@@ -300,11 +300,12 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
                 console.log("done");
                 progress.report({ message: "Installing...", increment: -100 });
                 try {
-                  let buttons = ['Yes', 'No'];
-                  let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
-                  if (choice === buttons[0]) {
-                    fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
-                  }
+                  // let buttons = ['Yes', 'No'];
+                  // let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
+                  // if (choice === buttons[0]) {
+                  //   fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
+                  // }
+                  fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
 
                   totalSize = fsExtra.statSync(tmpFilePath.fsPath).size;
                   currentSize = 0;
@@ -312,6 +313,8 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
                   const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk: Buffer) => {
                     const buffer = chunk as Buffer;
                     currentSize += buffer.length;
+                  }).on('error', (err: Error) => {
+                    throw err;
                   });
 
                   unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', async () => {
@@ -345,6 +348,8 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
 
                     vscode.window.showInformationMessage(`Toolchain has been successuly installed!`, ...['Ok']);
                     isTerminated = true;
+                  }).on('error', (err: Error) => {
+                    throw err;
                   });
 
                 } catch (err) {
@@ -383,8 +388,10 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
         }).on('error', error => {
           console.log(error);
           isTerminated = true;
+          vscode.window.showErrorMessage(`Unknown error while downloading or installing`, ...['Ok']);
           resolve(false);
         }).setTimeout(10000).on('timeout', () => {
+          vscode.window.showErrorMessage(`Connection timeout.`, ...['Ok']);
           console.log("Request timeout");
           isTerminated = true;
           resolve(false);
@@ -399,23 +406,27 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
     if (isExist) {
       progress.report({ message: "Installing...", increment: 0 });
       try {
-        let buttons = ['Yes', 'No'];
-        let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
-        if (choice === buttons[0]) {
-          fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
-        }
+        // let buttons = ['Yes', 'No'];
+        // let choice = await vscode.window.showInformationMessage(`Do you want to use clear install?`, { modal: true }, ...buttons);
+        // if (choice === buttons[0]) {
+        //   fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
+        // }
+        fs.rmSync(vscode.Uri.joinPath(toolchainDirPath, '.eec').fsPath, { recursive: true, force: true });
 
         totalSize = fsExtra.statSync(tmpFilePath.fsPath).size;
 
         const unZipStream = fsExtra.createReadStream(tmpFilePath.fsPath).on('data', (chunk: Buffer) => {
           const buffer = chunk as Buffer;
           currentSize += buffer.length;
+        }).on('error', (err: Error) => {
+          throw err;
         });
 
         unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', async () => {
 
           if (os.platform().toString() != 'win32') {
             let binPath = vscode.Uri.joinPath(toolchainDirPath, ".eec", "bin");
+            let ldPath = vscode.Uri.joinPath(binPath, 'lld').fsPath;
 
             await vscode.workspace.fs.readDirectory(binPath).then((files) => {
               files.forEach(element => {
@@ -427,7 +438,7 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
                   fs.closeSync(fd);
                   if (element[0] != 'lld' && element[0].indexOf("lld") != -1) {
                     fs.rmSync(subFile, { force: true });
-                    fs.symlinkSync('lld', subFile, 'file');
+                    fs.symlinkSync(ldPath, subFile, 'file');
                   }
                 } catch (e) {
                   vscode.window.showErrorMessage(`Can't open file ${subFile} to set file permission`, ...['Ok']);
@@ -442,7 +453,10 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
 
           vscode.window.showInformationMessage(`Toolchain has been successuly installed!`, ...['Ok']);
           isTerminated = true;
+        }).on('error', (err: Error) => {
+          throw err;
         });
+
 
       } catch (err) {
         console.log();

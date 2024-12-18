@@ -80,7 +80,7 @@ export async function runDebug(config: Config, isSimulator: boolean) {
 
   let extName = "marus25.cortex-debug";
 
-  if ((isSimulator && os.type() === "Windows_NT") || config.targetDevice.devName.indexOf("windows") != -1) {
+  if ((isSimulator) || config.targetDevice.devName.indexOf("windows") != -1) {
     extName = "ms-vscode.cpptools";
   }
 
@@ -99,7 +99,7 @@ export async function runDebug(config: Config, isSimulator: boolean) {
   }
 
 
-  if ((isSimulator && os.type() === "Windows_NT") || config.targetDevice.devName.indexOf('windows') != -1) {
+  if ((isSimulator) || config.targetDevice.devName.indexOf('windows') != -1) {
 
 
 
@@ -155,6 +155,8 @@ export async function runDebug(config: Config, isSimulator: boolean) {
       ".eec", "bin", os.type() === "Windows_NT" ? `eec.exe` : 'eec')
       : vscode.Uri.file(config.exePath);
 
+    const gdbPath = vscode.Uri.joinPath(vscode.Uri.file(homeDir), '.ecc', 'bin', 'gdb');
+
     // const task = new vscode.Task(
     //   { type: 'eec', command: isSimulator ? 'simulate' : 'run' },
     //   ws ?? vscode.TaskScope.Workspace,
@@ -163,8 +165,10 @@ export async function runDebug(config: Config, isSimulator: boolean) {
     //   new vscode.ProcessExecution(exePath.fsPath, dbgArgs2)
     // );
 
-    const debugConfig: vscode.DebugConfiguration = {
-      "name": isSimulator ? "SimulatorWin64-dbg" : "x64-windows-dbg",
+    let debugConfig: vscode.DebugConfiguration =
+    os.platform().toString() === 'win32' ?
+    {
+      "name":  isSimulator ? `Simulator${config.hostTriplet}-dbg` : `${config.hostTriplet}-dbg`,
       "type": "cppvsdbg",
       "request": "launch",
       "program": exePath.fsPath,
@@ -172,7 +176,22 @@ export async function runDebug(config: Config, isSimulator: boolean) {
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": []
+    }
+    :
+    {
+      "name":  isSimulator ? `Simulator${config.hostTriplet}-dbg` : `${config.hostTriplet}-dbg`,
+      "type": "cppdbg",
+      "request": "launch",
+      "program": exePath.fsPath,
+      "args": dbgArgs2,
+      "stopAtEntry": false,
+      "cwd": "${fileDirname}",
+      "environment": [],
+      // "MIMode": "gdb",
+      // "miDebuggerPath": gdbPath.fsPath
     };
+
+  
 
     vscode.debug.startDebugging(ws, debugConfig);
 
