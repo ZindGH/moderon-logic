@@ -314,7 +314,31 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
                     currentSize += buffer.length;
                   });
 
-                  unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', () => {
+                  unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', async () => {
+                    let binPath = vscode.Uri.joinPath(toolchainDirPath, ".eec", "bin");
+
+                    await vscode.workspace.fs.readDirectory(binPath).then((files) => {
+                      files.forEach(element => {
+                        const subFile = vscode.Uri.joinPath(binPath, element[0]).fsPath;
+
+                        try {
+                          const fd = fs.openSync(subFile, 'r+');
+                          fs.fchmodSync(fd, 0o777);
+                          fs.closeSync(fd);
+                          if (element[0] != 'lld' && element[0].indexOf("lld") != -1) {
+                            fs.rmSync(subFile, {force: true});
+                            fs.symlinkSync('lld', subFile, 'file');
+                          }
+                        } catch (e) {
+                          vscode.window.showErrorMessage(`Can't open file ${subFile} to set file permission`, ...['Ok']);
+                          return;
+                        }
+
+                      });
+                    }, () => {
+                      console.log("err");
+                    });
+                    vscode.window.showInformationMessage(`Toolchain has been successuly installed!`, ...['Ok']);
                     isTerminated = true;
                   });
 
@@ -383,7 +407,36 @@ export async function installToolchain(toolchainInfo: ToolchainInfo): Promise<bo
           currentSize += buffer.length;
         });
 
-        unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', () => {
+        unZipStream.pipe(unzip.Extract({ path: toolchainDirPath.fsPath })).on('finish', async () => {
+
+
+          const binPath = vscode.Uri.joinPath(toolchainDirPath, ".eec", "bin");
+          // const lldPath = vscode.Uri.joinPath(binPath, 'lld').fsPath;
+
+          await vscode.workspace.fs.readDirectory(binPath).then((files) => {
+            files.forEach(element => {
+
+              const subFile = vscode.Uri.joinPath(binPath, element[0]).fsPath;
+
+              try {
+                const fd = fs.openSync(subFile, 'r+');
+                fs.fchmodSync(fd, 0o777);
+                fs.closeSync(fd);
+
+                if (element[0] != 'lld' && element[0].indexOf("lld") != -1) {
+                  fs.rmSync(subFile, {force: true});
+                  fs.symlinkSync('lld', subFile, 'file');
+                }
+              } catch (e) {
+                vscode.window.showErrorMessage(`Can't open file ${subFile} to set file permission`, ...['Ok']);
+                return;
+              }
+
+            });
+          }, () => {
+            console.log("err");
+          });
+          vscode.window.showInformationMessage(`Toolchain has been successuly installed!`, ...['Ok']);
           isTerminated = true;
         });
 
@@ -724,11 +777,11 @@ function getVerToInt(str: string): number {
   return (parseInt(nums[0]) << 16) | (parseInt(nums[1]) << 8) | (parseInt(nums[2]));
 }
 
-async function getLastToolchainInfo(): Promise<ToolchainInfo | undefined> {
+async function getLastToolchainInfo(config: Config): Promise<ToolchainInfo | undefined> {
 
   let lastToolchain: ToolchainInfo | undefined = undefined;
 
-  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/master/toolchain.json").catch((e) => {
+  const response = await fetch(`https://github.com/Retrograd-Studios/eemblangtoolchain/raw/master/toolchain_${config.hostTriplet}.json`).catch((e) => {
     console.log(e);
     return undefined;
   });
@@ -757,11 +810,11 @@ async function getLastToolchainInfo(): Promise<ToolchainInfo | undefined> {
 
 export let IsNightlyToolchain = false;
 
-export async function getToolchains(): Promise<ToolchainInfo[] | undefined> {
+export async function getToolchains(config: Config): Promise<ToolchainInfo[] | undefined> {
 
   let lastToolchain: ToolchainInfo | undefined = undefined;
 
-  const response = await fetch("https://github.com/Retrograd-Studios/eemblangtoolchain/raw/master/toolchain.json").catch((e) => {
+  const response = await fetch(`https://github.com/Retrograd-Studios/eemblangtoolchain/raw/master/toolchain_${config.hostTriplet}.json`).catch((e) => {
     console.log(e);
     return undefined;
   });
@@ -805,10 +858,10 @@ export async function getToolchains(): Promise<ToolchainInfo[] | undefined> {
 export var isFoundToolchain = false;
 
 
-export async function IsToolchainInstalled(): Promise<boolean> {
+export async function IsToolchainInstalled(config: Config): Promise<boolean> {
 
   if (!isFoundToolchain) {
-    isFoundToolchain = await checkToolchain();
+    isFoundToolchain = await checkToolchain(config);
     if (!isFoundToolchain) {
       vscode.window.showErrorMessage(`EEmbLang Compiler is not installed! Can't find toolchain`);
       return false;//new Promise((resolve, reject) => { reject(); });
@@ -821,7 +874,7 @@ export async function IsToolchainInstalled(): Promise<boolean> {
 
 
 
-export async function checkToolchain(): Promise<boolean> {
+export async function checkToolchain(config: Config): Promise<boolean> {
 
   //let path = await toolchain.easyPath();
   //console.log(path);
@@ -843,7 +896,7 @@ export async function checkToolchain(): Promise<boolean> {
     let buttons = ['Install', 'Not now'];
     let choice = await vscode.window.showWarningMessage(`EEmbLang Toolchain is not installed!\nDo you want Download and Install now?`, { modal: true }, ...buttons);
     if (choice === buttons[0]) {
-      const toolchainInfo = await getLastToolchainInfo();
+      const toolchainInfo = await getLastToolchainInfo(config);
       let res = toolchainInfo != undefined ? await installToolchain(toolchainInfo) : false;
       if (!res) {
         vscode.window.showErrorMessage(`Error: EEmbLang Toolchain is not installed!\nCan't download file`);
@@ -866,7 +919,7 @@ export async function checkToolchain(): Promise<boolean> {
   //   return "ver" in o 
   // }
 
-  const lastToolchain = await getLastToolchainInfo();
+  const lastToolchain = await getLastToolchainInfo(config);
   if (lastToolchain == undefined) {
     return true;
   }
@@ -920,7 +973,7 @@ export async function getCurrentToolchain(): Promise<ToolchainInfo | undefined> 
 }
 
 
-export async function resoleProductPaths(config: Config) : Promise<boolean> {
+export async function resoleProductPaths(config: Config): Promise<boolean> {
 
 
 

@@ -64,7 +64,7 @@ async function checkDepencies(extName: string): Promise<boolean> {
 export async function runDebug(config: Config, isSimulator: boolean) {
 
 
-  if (!(await toolchain.IsToolchainInstalled())) {
+  if (!(await toolchain.IsToolchainInstalled(config))) {
     return new Promise((resolve, reject) => { reject(); });
   }
 

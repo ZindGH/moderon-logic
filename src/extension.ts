@@ -449,6 +449,14 @@ export function activate(context: vscode.ExtensionContext) {
   console.log(extation);
 
   let config = new Config(context);
+  if (os.platform().toString() === "windows") {
+    config.hostTriplet = `${os.arch()}-win`;
+  } else {
+    config.hostTriplet = `${os.arch()}-${os.platform()}`;
+  }
+
+  console.log(`triplet: ${config.hostTriplet}`);
+
   let eflashClient = new EFlasherClient(config, context);
   let eGdbServer = new EGDBServer(config, context, eflashClient);
 
@@ -556,7 +564,7 @@ export function activate(context: vscode.ExtensionContext) {
   // //   }
   // // );
 
-  let disposable = client.start();
+  // let disposable = client.start();
 //   context.subscriptions.push(disposable);
   
 //   this.languageClient.onReady().then(() => {
@@ -763,9 +771,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 
   
-  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.installToolchain', async config => {
+  context.subscriptions.push(vscode.commands.registerCommand('eepl.command.installToolchain', async () => {
 
-    toolchain.checkToolchain();
+    toolchain.checkToolchain(config);
 
   }));
 
@@ -1120,7 +1128,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   (async () => {
 
-    await toolchain.checkToolchain();
+    await toolchain.checkToolchain(config);
     let currentToolchain = await toolchain.getCurrentToolchain();
     toolchain.checkAndSetCurrentToolchain(config, sbSelectToolchain);
 
@@ -1226,7 +1234,7 @@ export function activate(context: vscode.ExtensionContext) {
     //const prevVers = config.get<string>('toolchain.version');
     const currentToolchain = await toolchain.getCurrentToolchain();
 
-    const toolchains = await toolchain.getToolchains();
+    const toolchains = await toolchain.getToolchains(config);
 
     if (toolchains != undefined) {
 
@@ -1326,11 +1334,11 @@ export function activate(context: vscode.ExtensionContext) {
 
 
   vscode.commands.registerCommand('eepl.command.createNewProject', async () => {
-    createNewProject();
+    createNewProject(config);
   });
 
   vscode.commands.registerCommand('eepl.command.createProjectFromExample', async () => {
-    selectExamples();
+    selectExamples(config);
   });
 
 

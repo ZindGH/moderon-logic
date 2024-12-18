@@ -48,6 +48,8 @@ export class Config {
     uploadingFilePath: string = "./out/prog.alf";
     productName: string = "output";
 
+    hostTriplet: string = "x64-win";
+
     readonly rootSection = "eepl";
     // config: {
     //     description: string; devManId: number; devName: string; frameWorkVerA: number; frameWorkVerB: number; triplet: string;

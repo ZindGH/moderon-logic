@@ -100,7 +100,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
         // VSCode calls this for every cargo task in the user's tasks.json,
         // we need to inform VSCode how to execute that command by creating
         // a ShellExecution for it.
-        if (!(await toolchain.IsToolchainInstalled())) {
+        if (!(await toolchain.IsToolchainInstalled(this.config))) {
             return new Promise((resolve, reject) => { reject(); });
         }
 
@@ -124,7 +124,7 @@ class EasyTaskProvider implements vscode.TaskProvider {
 export async function createTask(idx: number, config: Config): Promise<vscode.Task> {
 
 
-    if (!(await toolchain.IsToolchainInstalled())) {
+    if (!(await toolchain.IsToolchainInstalled(config))) {
         return new Promise((resolve, reject) => { reject(); });
     }
 
