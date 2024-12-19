@@ -220,37 +220,37 @@ class EEmbGdbBridgeTaskTerminal2 implements vscode.Pseudoterminal {
 
   private defaultLine = "→ ";
   private keys = {
-      enter: "\r",
-      backspace: "\x7f",
+    enter: "\r",
+    backspace: "\x7f",
   };
 
   private actions = {
-      cursorBack: "\x1b[D",
-      deleteChar: "\x1b[P",
-      clear: "\x1b[2J\x1b[3J\x1b[;H",
+    cursorBack: "\x1b[D",
+    deleteChar: "\x1b[P",
+    clear: "\x1b[2J\x1b[3J\x1b[;H",
   };
 
-private writeEmitter = new vscode.EventEmitter<string>();
-onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-private closeEmitter = new vscode.EventEmitter<number>();
-onDidClose?: vscode.Event<number> = this.closeEmitter.event;
+  private writeEmitter = new vscode.EventEmitter<string>();
+  onDidWrite: vscode.Event<string> = this.writeEmitter.event;
+  private closeEmitter = new vscode.EventEmitter<number>();
+  onDidClose?: vscode.Event<number> = this.closeEmitter.event;
 
-//private fileWatcher: vscode.FileSystemWatcher | undefined;
+  //private fileWatcher: vscode.FileSystemWatcher | undefined;
 
-// constructor(private workspaceRoot: string, private flavor: string, private flags: string[], private getSharedState: () => string | undefined, private setSharedState: (state: string) => void) {
-// }
+  // constructor(private workspaceRoot: string, private flavor: string, private flags: string[], private getSharedState: () => string | undefined, private setSharedState: (state: string) => void) {
+  // }
 
-// open(initialDimensions: vscode.TerminalDimensions | undefined): void {
-// 	// At this point we can start using the terminal.
-// 	if (this.flags.indexOf('watch') > -1) {
-// 		const pattern = nodePath.join(this.workspaceRoot, 'customBuildFile');
-// 		this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
-// 		this.fileWatcher.onDidChange(() => this.doBuild());
-// 		this.fileWatcher.onDidCreate(() => this.doBuild());
-// 		this.fileWatcher.onDidDelete(() => this.doBuild());
-// 	}
-// 	//this.doBuild();
-// }
+  // open(initialDimensions: vscode.TerminalDimensions | undefined): void {
+  // 	// At this point we can start using the terminal.
+  // 	if (this.flags.indexOf('watch') > -1) {
+  // 		const pattern = nodePath.join(this.workspaceRoot, 'customBuildFile');
+  // 		this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
+  // 		this.fileWatcher.onDidChange(() => this.doBuild());
+  // 		this.fileWatcher.onDidCreate(() => this.doBuild());
+  // 		this.fileWatcher.onDidDelete(() => this.doBuild());
+  // 	}
+  // 	//this.doBuild();
+  // }
 
   constructor(private workspaceRoot: string) {
   }
@@ -259,30 +259,30 @@ onDidClose?: vscode.Event<number> = this.closeEmitter.event;
   onDidChangeName?: vscode.Event<string> | undefined;
 
   open(initialDimensions: vscode.TerminalDimensions | undefined): void {
-      throw new Error('Method not implemented.');
+    throw new Error('Method not implemented.');
   }
   handleInput?(data: string): void {
-      console.log(data);
-      //throw new Error('Method not implemented.');
+    console.log(data);
+    //throw new Error('Method not implemented.');
   }
   setDimensions?(dimensions: vscode.TerminalDimensions): void {
-      //throw new Error('Method not implemented.');
+    //throw new Error('Method not implemented.');
   }
 
-close(): void {
-  // The terminal has been closed. Shutdown the build.
-  // if (this.fileWatcher) {
-  // 	this.fileWatcher.dispose();
-  // }
-}
+  close(): void {
+    // The terminal has been closed. Shutdown the build.
+    // if (this.fileWatcher) {
+    // 	this.fileWatcher.dispose();
+    // }
+  }
 
   log(data: string): void {
-      this.writeEmitter.fire(`${data}\r\n`);
+    this.writeEmitter.fire(`${data}\r\n`);
   }
 
   clear(): void {
-  this.writeEmitter.fire(this.actions.clear);
-}
+    this.writeEmitter.fire(this.actions.clear);
+  }
 
 }
 
@@ -292,6 +292,8 @@ const traceOutputChannel = vscode.window.createOutputChannel("EEPL LSP Trace");
 
 import internal = require('stream');
 import { stdin, stdout } from 'process';
+import { resolve } from 'path';
+import { rejects } from 'assert';
 
 async function executeLsp(): Promise<boolean> {
 
@@ -300,8 +302,8 @@ async function executeLsp(): Promise<boolean> {
 
 
   if (!path) {
-      vscode.window.showErrorMessage("Can't find path to 'eec'");
-      return false;
+    vscode.window.showErrorMessage("Can't find path to 'eec'");
+    return false;
   }
 
 
@@ -316,31 +318,31 @@ async function executeLsp(): Promise<boolean> {
 
     const terminal = vscode.window.createTerminal({ name: 'EEPL TERM', pty: eGdbTerminal });
 
-      eflash = cp.spawn(path, [ "./", "-lsp", "-o", "./"], {
-          stdio: ["pipe", "pipe", "pipe"]
-      }).on("error", (err) => {
-          console.log("Error: ", err);
-          reject(new Error(`could not launch eflash: ${err}`));
-          //return false;
-      }).on("exit", (exitCode, _) => {
-          if (exitCode == 0) {
-              resolve("Done");
-          }
-          else {
-              //reject(exitCode);
-              reject(new Error(`exit code: ${exitCode}.`));
-          }
-      });
+    eflash = cp.spawn(path, ["./", "-lsp", "-o", "./"], {
+      stdio: ["pipe", "pipe", "pipe"]
+    }).on("error", (err) => {
+      console.log("Error: ", err);
+      reject(new Error(`could not launch eflash: ${err}`));
+      //return false;
+    }).on("exit", (exitCode, _) => {
+      if (exitCode == 0) {
+        resolve("Done");
+      }
+      else {
+        //reject(exitCode);
+        reject(new Error(`exit code: ${exitCode}.`));
+      }
+    });
 
     eflash.stderr.on("data", (chunk) => {
-        console.log(chunk.toString());
-        eGdbTerminal.log(`stderr: ${chunk.toString()}`);
+      console.log(chunk.toString());
+      eGdbTerminal.log(`stderr: ${chunk.toString()}`);
     });
 
     eflash.stdout.on("data", (chunk) => {
       console.log(chunk.toString());
       eGdbTerminal.log(`stdout: ${chunk.toString()}`);
-  });
+    });
 
     const rl = readline.createInterface({ input: eflash.stdout });
     rl.on("line", (line) => {
@@ -351,81 +353,81 @@ async function executeLsp(): Promise<boolean> {
     });
 
 
-      const serverOptions = () => {
-        const result: StreamInfo = {
-              writer: eflash!.stdin,
-              reader: eflash!.stdout
-              };
-              return Promise.resolve(result);
+    const serverOptions = () => {
+      const result: StreamInfo = {
+        writer: eflash!.stdin,
+        reader: eflash!.stdout
       };
+      return Promise.resolve(result);
+    };
 
-      let clientOptions: LanguageClientOptions = {
-          // Register the server for plain text documents
-          documentSelector: [{ scheme: 'file', language: 'eepl' }],
-          synchronize: {
-        		fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
-        	},
-          outputChannel: outputChannel,
-          // revealOutputChannelOn: RevealOutputChannelOn.Never,
-          traceOutputChannel: traceOutputChannel
-          // synchronize: {
-          //   // Notify the server about file changes to '.clientrc files contained in the workspace
-          //   fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
-          // }
-        };
-      
-        // Create the language client and start the client.
-        client = new LanguageClient(
-          'eepl-vscode-lsclient',
-          'EEPL LS Client',
-          serverOptions,
-          clientOptions
-        );
+    let clientOptions: LanguageClientOptions = {
+      // Register the server for plain text documents
+      documentSelector: [{ scheme: 'file', language: 'eepl' }],
+      synchronize: {
+        fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
+      },
+      outputChannel: outputChannel,
+      // revealOutputChannelOn: RevealOutputChannelOn.Never,
+      traceOutputChannel: traceOutputChannel
+      // synchronize: {
+      //   // Notify the server about file changes to '.clientrc files contained in the workspace
+      //   fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
+      // }
+    };
 
-        client.start();
+    // Create the language client and start the client.
+    client = new LanguageClient(
+      'eepl-vscode-lsclient',
+      'EEPL LS Client',
+      serverOptions,
+      clientOptions
+    );
+
+    client.start();
 
   });
 
 
   eGdbTerminal.log(`Test`);
 
-      promiseExec.then(() => {
-          result = true;
-      }, () => {
-          result = false;
-      }).catch(() => {
-          result = false;
-      });
+  promiseExec.then(() => {
+    result = true;
+  }, () => {
+    result = false;
+  }).catch(() => {
+    result = false;
+  });
 
   let result: boolean | undefined = undefined;
 
   const prog = await vscode.window.withProgress({
-      location: vscode.ProgressLocation.Notification,
-      title: "waiting",
-      cancellable: true
+    location: vscode.ProgressLocation.Notification,
+    title: "waiting",
+    cancellable: true
   }, async (progress, token) => {
 
-      progress.report({ message: "Waiting...", increment: -1 });
+    progress.report({ message: "Waiting...", increment: -1 });
 
-      token.onCancellationRequested(() => {
-          result = false;
-          if (eflash && eflash.exitCode == null) {
-              eflash.kill();
-          }
-      });
-
-      while (result == undefined) {
-
-          if (token.isCancellationRequested) {
-              result = false;
-              if (eflash && eflash.exitCode == null) {
-                  eflash.kill();
-              }
-          }
-          await new Promise(f => setTimeout(f, 100));
+    token.onCancellationRequested(() => {
+      result = false;
+      if (eflash && eflash.exitCode == null) {
+        eflash.kill();
       }
+    });
 
-      return;
+    while (result == undefined) {
+
+      if (token.isCancellationRequested) {
+        result = false;
+        if (eflash && eflash.exitCode == null) {
+          eflash.kill();
+        }
+      }
+      await new Promise(f => setTimeout(f, 100));
+    }
+
+    return;
 
   });
 
@@ -434,7 +436,93 @@ async function executeLsp(): Promise<boolean> {
 }
 
 
+class EEPLColorProvider implements vscode.DocumentColorProvider {
+  provideColorPresentations(color: vscode.Color, 
+    context: { readonly document: vscode.TextDocument; readonly range: vscode.Range; }, 
+    token: vscode.CancellationToken): vscode.ProviderResult<vscode.ColorPresentation[]> {
+
+      const clR =  255 * color.red;
+      const clG =  255 * color.green;
+      const clB =  255 * color.blue;
+
+      const result: vscode.ColorPresentation[] = [
+
+        {
+          label: `GET_COLOR(${clR}, ${clG}, ${clB})`
+        }
+
+      ];
+
+
+
+      return result;
+  }
+
+
+  public provideDocumentColors(
+    document: vscode.TextDocument, token: vscode.CancellationToken):
+    Thenable<vscode.ColorInformation[]> {
+
+
+    return new Promise<vscode.ColorInformation[]>((resolve, reject) => {
+
+      let result: vscode.ColorInformation[] = [];
+
+      for (let i = 0; i < document.lineCount; ++i) {
+
+        const line = document.lineAt(i);
+        let range = line.range;
+        let text = line.text;
+
+        let isMatching = true;
+        while (isMatching) {
+
+          const regex : RegExp = /(GET_COLOR)\s*\(\s*((?:0x)?[0-9,a-f,A-F]+)\s*,\s*((?:0x)?[0-9,a-f,A-F]+)\s*,\s*((?:0x)?[0-9,a-f,A-F]+)\s*\)/;
+          // const word = document.getWordRangeAtPosition(line.range.start, regex);
+          const words = regex.exec(text);
+          if (words === null) {
+            isMatching = false;
+            continue;
+          }
+
+          const clR =  1.0 / 255 * Number.parseInt(words[2]);
+          const clG =  1.0 / 255 * Number.parseInt(words[3]);
+          const clB =  1.0 / 255 * Number.parseInt(words[4]);
+
+          const endIndex = text.indexOf(")", words.index) + 1;
+          
+          range = range.with(
+            range.start.translate(0, words.index),
+            range.end.with(undefined, range.start.character + endIndex)
+          );
+
+          result.push( { range: range, color: { red: clR, green: clG, blue: clB, alpha: 1.0 } } );
+
+          range = range.with(
+            range.end,
+            range.end
+          );
+
+          text = text.substring(endIndex);
+
+        }
+        
+
+      }
+
+      return resolve(result);
+    });
+  }
+
+}
+
+
 export function activate(context: vscode.ExtensionContext) {
+
+
+  context.subscriptions.push(
+    vscode.languages.registerColorProvider(
+    { scheme: 'file', language: 'eepl' }, new EEPLColorProvider()));
 
 
   //console.log("Hello, World!");
@@ -482,38 +570,38 @@ export function activate(context: vscode.ExtensionContext) {
   // let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
 
   const serverPort: string = config.get("lsp.port"); // Получаем порт из настроек окружения vscode
-	// vscode.window.showInformationMessage(`Starting LSP client on port: ` + serverPort);  // Отправим пользователю информацию о запуске расширения
+  // vscode.window.showInformationMessage(`Starting LSP client on port: ` + serverPort);  // Отправим пользователю информацию о запуске расширения
 
 
   // executeLsp();
 
-	const connectionInfo = {
-      port: Number(serverPort),
-		  host: "localhost"
+  const connectionInfo = {
+    port: Number(serverPort),
+    host: "localhost"
+  };
+  const serverOptions = () => {
+    // Подключение по сокету
+    const socket = net.connect(connectionInfo);
+    socket.addListener("error", (err) => {
+      console.log(err.message);
+    })
+    socket.addListener("timeout", () => {
+      console.log("timout");
+    })
+    socket.addListener("connect", () => {
+      console.log("conecteed");
+    })
+    const result: StreamInfo = {
+      writer: socket,
+      reader: socket
     };
-    const serverOptions = () => {
-        // Подключение по сокету
-        const socket = net.connect(connectionInfo);
-        socket.addListener("error", (err) => {
-          console.log(err.message);
-        })
-        socket.addListener("timeout", () => {
-          console.log("timout");
-        })
-        socket.addListener("connect", () => {
-          console.log("conecteed");
-        })
-        const result: StreamInfo = {
-            writer: socket,
-            reader: socket
-        };
-        return Promise.resolve(result);
-    };
+    return Promise.resolve(result);
+  };
 
   // outputChannel.show(true);
   // traceOutputChannel.show(true);
 
-   
+
 
 
   // const run: Executable = {
@@ -546,8 +634,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Register the server for plain text documents
     documentSelector: [{ scheme: 'file', language: 'eepl' }],
     synchronize: {
-			fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
-		},
+      fileEvents: vscode.workspace.createFileSystemWatcher('**/.clientrc')
+    },
     outputChannel: outputChannel,
     // revealOutputChannelOn: RevealOutputChannelOn.Never,
     traceOutputChannel: traceOutputChannel
@@ -580,15 +668,15 @@ export function activate(context: vscode.ExtensionContext) {
   // // );
 
   // let disposable = client.start();
-//   context.subscriptions.push(disposable);
-  
-//   this.languageClient.onReady().then(() => {
-//     disposeDidChange.dispose();
-//     this.context!.subscriptions.push(disposable);
-//   });
-// } catch (exception) {
-//   return Promise.reject("Extension error!");
-// }
+  //   context.subscriptions.push(disposable);
+
+  //   this.languageClient.onReady().then(() => {
+  //     disposeDidChange.dispose();
+  //     this.context!.subscriptions.push(disposable);
+  //   });
+  // } catch (exception) {
+  //   return Promise.reject("Extension error!");
+  // }
 
 
 
@@ -635,38 +723,38 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.progress', async config => {
 
-    const ws = vscode.workspace.workspaceFolders? vscode.workspace.workspaceFolders[0] : undefined;
+    const ws = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0] : undefined;
 
     // const debugConfig: vscode.DebugConfiguration = {
     //   "name": "SimulatorWin64",
-		// 	"type": "cppvsdbg",
-		// 	"request": "launch",
-		// 	"program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
-		// 	"args": [`${ws?.uri.fsPath}/PackageInfo.es`, "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./output"],
-		// 	"stopAtEntry": false,
-		// 	"cwd": "${fileDirname}",
-		// 	"environment": []
+    // 	"type": "cppvsdbg",
+    // 	"request": "launch",
+    // 	"program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
+    // 	"args": [`${ws?.uri.fsPath}/PackageInfo.es`, "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./output"],
+    // 	"stopAtEntry": false,
+    // 	"cwd": "${fileDirname}",
+    // 	"environment": []
     //  };
 
-     const debugConfig: vscode.DebugConfiguration = {
+    const debugConfig: vscode.DebugConfiguration = {
       // "type": "lldb-dap",
-			// "request": "launch",
-			// "name": "LLDSimulatorWin64",
-			// "program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
-			// "args": ["${workspaceFolder}/PackageInfo.es", "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./out/M72OD20R/output"],
-			// "cwd": "${fileDirname}"
+      // "request": "launch",
+      // "name": "LLDSimulatorWin64",
+      // "program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
+      // "args": ["${workspaceFolder}/PackageInfo.es", "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./out/M72OD20R/output"],
+      // "cwd": "${fileDirname}"
       "name": "SimulatorWin64",
-			"type": "lldb",
-			"request": "launch",
-			"program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
-			"args": [`${ws?.uri.fsPath}/PackageInfo.es`, "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./out/M72OD20R/output"],
-			"stopAtEntry": true,
-			"cwd": `${ws?.uri.fsPath}`,
+      "type": "lldb",
+      "request": "launch",
+      "program": "c:/Users/Cpt. Eg1r/.eec/bin/eec.exe",
+      "args": [`${ws?.uri.fsPath}/PackageInfo.es`, "-target", "c:/Users/Cpt. Eg1r/.eec/targets/M72OD20R/targetInfo.json", "-jit", "-emit-llvm", "-g", "-O0", "-o", "./out/M72OD20R/output"],
+      "stopAtEntry": true,
+      "cwd": `${ws?.uri.fsPath}`,
       "sourceLanguages": ["eepl", "es"]
-			// "environment": []
-     };
-  
-     vscode.debug.startDebugging(ws, debugConfig);
+      // "environment": []
+    };
+
+    vscode.debug.startDebugging(ws, debugConfig);
 
     // vscode.window.withProgress({
     //   location: vscode.ProgressLocation.Notification,
@@ -713,11 +801,11 @@ export function activate(context: vscode.ExtensionContext) {
 
           const task = await createTask(3, config);
           const exec = await vscode.tasks.executeTask(task);
-        
+
         } else {
 
-          
-          
+
+
           EEPL_isBuildFailed = false;
           const cmd = EEPL_stackOfCommands.pop();
           if (cmd) {
@@ -727,7 +815,7 @@ export function activate(context: vscode.ExtensionContext) {
           }
 
         }
-        
+
       } else if (tsk.command == "ebuild" && e.exitCode == 0) {
         EEPL_isBuildFailed = false;
         const cmd = EEPL_stackOfCommands.pop();
@@ -747,7 +835,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (e.fileName.indexOf("settings.json") == -1) {
       EEPL_isReqRebuild = true;
     }
-    
+
   });
 
   vscode.workspace.onDidSaveNotebookDocument((e) => {
@@ -785,7 +873,7 @@ export function activate(context: vscode.ExtensionContext) {
   // }));
 
 
-  
+
   context.subscriptions.push(vscode.commands.registerCommand('eepl.command.installToolchain', async () => {
 
     toolchain.checkToolchain(config);
@@ -832,7 +920,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     //EEPL_isReqRebuild = true;
 
-    if (cPreset == 'Debug' || cPreset == 'OpDebug' 
+    if (cPreset == 'Debug' || cPreset == 'OpDebug'
       || (cPreset == 'Custom' && isGenDbgInfo)) {
       runDebug(config, true);
       return;
@@ -934,7 +1022,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }
 
-    
+
 
     if (EEPL_isReqRebuild || EEPL_isBuildFailed || runRebuild) {
       EEPL_stackOfCommands.push('eepl.command.buildAndFlash');
@@ -945,26 +1033,26 @@ export function activate(context: vscode.ExtensionContext) {
 
     if (config.targetDevice.periphInfo.isDesktop) {
 
-        const cmd = EEPL_stackOfCommands.pop();
+      const cmd = EEPL_stackOfCommands.pop();
 
-        if (cmd === 'eepl.command.buildAndDebug') {
-          vscode.commands.executeCommand(cmd);
-          return;
-        } else if (cmd) {
-          EEPL_stackOfCommands.push(cmd);
-        }
-
-        const task = new vscode.Task(
-          { type: 'eec', command: 'run' },
-           vscode.TaskScope.Workspace,
-          'run',
-          'eepl',
-          new vscode.ProcessExecution(config.exePath, [])
-        );
-
-        vscode.tasks.executeTask(task);
-
+      if (cmd === 'eepl.command.buildAndDebug') {
+        vscode.commands.executeCommand(cmd);
         return;
+      } else if (cmd) {
+        EEPL_stackOfCommands.push(cmd);
+      }
+
+      const task = new vscode.Task(
+        { type: 'eec', command: 'run' },
+        vscode.TaskScope.Workspace,
+        'run',
+        'eepl',
+        new vscode.ProcessExecution(config.exePath, [])
+      );
+
+      vscode.tasks.executeTask(task);
+
+      return;
 
     }
 
@@ -1188,7 +1276,7 @@ export function activate(context: vscode.ExtensionContext) {
       //     platformIcon = '$(vm)'
       //   }
       // }
-      
+
       // let deviceIcon = '$(device-mobile)';
 
       // if (element.periphInfo.isDesktop) {
@@ -1209,11 +1297,11 @@ export function activate(context: vscode.ExtensionContext) {
           deviceIcon = '$(vm)'
         }
       }
-      
+
       let platformIcon = '$(device-mobile)';
 
       if (element.periphInfo.isDesktop) {
-        if (element.devName.indexOf('windows') != -1 ) {
+        if (element.devName.indexOf('windows') != -1) {
           platformIcon = '$(terminal-powershell)'
         } else if (element.devName.indexOf('linux') != -1) {
           platformIcon = '$(terminal-linux)'

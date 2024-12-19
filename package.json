@@ -436,7 +436,6 @@
                         ],
                         "description": "SerialPort StopBits"
                     },
-
                     "eepl.build.optimization": {
                         "type": "string",
                         "default": "-O3",
@@ -479,7 +478,7 @@
                             "Generate debug information. Enable -O3 level optimizations. Enable Runtime checks.",
                             "Discard debug information. Enable -O3 level optimizations. Disable Runtime checks.",
                             "Discard debug information. Enable -O3 level optimizations. Enable Runtime checks.",
-                            "User defined optimization level, on/off generate debug information, on/off Runtime checks." 
+                            "User defined optimization level, on/off generate debug information, on/off Runtime checks."
                         ],
                         "description": "Presets for build configuration."
                     },
@@ -532,7 +531,7 @@
                         "type": "number",
                         "default": 9091,
                         "description": "Port for EEPL Language Server"
-				    }
+                    }
                 }
             }
         ],
@@ -569,7 +568,13 @@
                     "group": "navigation@5"
                 }
             ]
-        }
+        },
+        "snippets": [
+            {
+                "language": "eepl",
+                "path": "./snippets/snippets.json"
+            }
+        ]
     },
     "dependencies": {
         "fs-extra": "^11.2.0",
