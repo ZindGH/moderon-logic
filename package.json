@@ -2,7 +2,7 @@
     "name": "moderon-logic",
     "displayName": "Moderon Logic",
     "description": "EEPL (Easy Embedded sytems Programming Language) Support, Compiler, Debugger, Simulator, Flasher and code browsing.",
-    "version": "0.9.8",
+    "version": "0.9.9",
     "icon": "icon.png",
     "repository": {
         "url": "https://github.com/Retrograd-Studios/moderon-logic.git",
