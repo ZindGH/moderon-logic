@@ -212,8 +212,8 @@
 			"prefix":  ["GUI", "draw", "row"],
 			"body": [
 				"row(${1:isHideRow}, ${2:cols/[col1_width(%), col2(%), ...]}) $",
-				"\t{",
-				"\t\t${3}",
+				"{",
+				"\t${3}",
 				"}"
 			],
 			"description": "GUI draw list row"
@@ -242,8 +242,8 @@
 			"prefix":  ["layout", "draw", "GUI"],
 			"body": [
 				"layout(${1:rowHight(%)}, ${2:colsCount/[col1_width(%), col2(%), ...]}) $",
-				"\t{",
-				"\t\t${3}",
+				"{",
+				"\t${3}",
 				"}"
 			],
 			"description": "GUI set layout"
@@ -253,8 +253,8 @@
 			"prefix":  ["flow_layout", "flow", "layout", "draw", "GUI"],
 			"body": [
 				"flow_layout(${1:xPos(%)}, ${2:yPos(%)}, ${3:rowHight(%)}, ${4:colsCount/[col1_width(%), col2(%), ...]}) $",
-				"\t{",
-				"\t\t${3}",
+				"{",
+				"\t${3}",
 				"}"
 			],
 			"description": "GUI set flow layout"
@@ -264,8 +264,8 @@
 			"prefix":  ["fixed_layout", "fixed", "layout", "draw", "GUI"],
 			"body": [
 				"fixed_layout(${1:xPos(pixels)}, ${2:yPos}, ${3:rowHight}, ${4:colsCount/[col1_width(pixels), col2, ...]}) $",
-				"\t{",
-				"\t\t${3}",
+				"{",
+				"\t${3}",
 				"}"
 			],
 			"description": "GUI set layout with pixels dimension"
@@ -275,8 +275,8 @@
 			"prefix":  ["fixed_flow_layout", "fixed", "flow", "layout", "draw", "GUI"],
 			"body": [
 				"fixed_flow_layout(${1:xPos(pixels)}, ${2:yPos}, ${3:rowHight}, ${4:colsCount/[col1_width(pixels), col2, ...]}) $",
-				"\t{",
-				"\t\t${3}",
+				"{",
+				"\t${3}",
 				"}"
 			],
 			"description": "GUI set flow layout with pixels dimension"
