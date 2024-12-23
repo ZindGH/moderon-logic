@@ -60,7 +60,7 @@
 		"GUI lebel": {
 			"prefix":  ["label", "GUI"],
 			"body": [
-				"label(`${1:text}`, GUI_ALIGN_${2:LEFT/RIGHT/CENTER}) $$" 
+				"label(\"${1:text}\", GUI_ALIGN_${2:LEFT/RIGHT/CENTER}) $$" 
 			],
 			"description": "label for GUI"
 		},
