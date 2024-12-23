@@ -59,19 +59,19 @@
 
 	
 		"foreach": {
-			"prefix": ["for"],
+			"prefix": ["for", "foreach"],
 			"body": ["for ${1:i}, ${2:v} in ${3:array} {", "\n\t$4", "\n}"],
 			"description": "foreach loop for arrays"
 		},
 
 		"for": {
-			"prefix": ["for"],
+			"prefix": ["for", "range"],
 			"body": ["for ${1:i} in ${2:0} .. ${3:N} {", "\n\t$4", "\n}"],
 			"description": "foreach loop for arrays"
 		},
 
 		"for with step": {
-			"prefix": ["for"],
+			"prefix": ["for", "range", "step"],
 			"body": ["for ${1:i} in ${2:0}, ${3:1} .. ${4:N} {", "\n\t$5", "\n}"],
 			"description": "foreach loop for arrays"
 		},
@@ -108,59 +108,50 @@
 			"description": "Set coefficient B for NTC10K."
 		},
 
-		"RGB Color": {
-			"prefix": ["GET_COLOR", "color"],
-			"body": ["GET_COLOR(0x${1:00}, 0x${2:00}, 0x${3:00})"],
-			"description": "Generate RGB Color from RGB format"
+		"RELAY_SET": {
+			"prefix": ["RELAY_SET", "DO"],
+			"body": ["RELAY_SET(RELAY_${1:1}, ${2:true/false})"],
+			"description": "Set relay output"
 		},
 
-		"Typed Modbus HOLDING reg": {
-			"prefix": ["MODBUS", "MB", "Holding"],
-			"body": ["MODBUS_ADD_LOCAL_H_REG($${1:int16}$ ${2:regName/auto}, ${3:regAddr/auto}, ${4:minValue}, ${5:maxValue}, ${6:default}, ${7:saveToROM}, ${8:MB_BIG_ENDIAN_WORDS})"],
-			"description": "Add local modbus holding register with type define"
+		"RELAY_TOGGLE": {
+			"prefix": ["RELAY_TOGGLE", "DO"],
+			"body": ["RELAY_TOGGLE(RELAY_${1:1})"],
+			"description": "Toggle relay output"
 		},
 
-		"Modbus HOLDING reg": {
-			"prefix": ["MODBUS", "MB", "Holding"],
-			"body": ["MODBUS_ADD_LOCAL_H_REG(${1:regName/auto}, ${2:regAddr/auto}, ${3:minValue}, ${4:maxValue}, ${5:default}, ${6:saveToROM}, ${7:MB_BIG_ENDIAN_WORDS})"],
-			"description": "Add local modbus holding register"
+		"RELAYS_SET": {
+			"prefix": ["RELAYS_SET", "DO", "RELAYS"],
+			"body": ["RELAYS_SET(${1:pinsMask}, ${2:true/false})"],
+			"description": "Set relays output with mask"
 		},
 
-		"Typed Modbus INPUT reg": {
-			"prefix": ["MODBUS", "MB", "Input"],
-			"body": ["MODBUS_ADD_LOCAL_I_REG($${1:int16}$ ${2:regName/auto}, ${3:regAddr/auto}, ${4:default}, ${5:MB_BIG_ENDIAN_WORDS})"],
-			"description": "Add local modbus input register with type define"
+		"RELAYS_TOGGLE": {
+			"prefix": ["RELAYS_TOGGLE", "DO"],
+			"body": ["RELAYS_TOGGLE(${1:pinsMask})"],
+			"description": "Toggle relays output with mask"
 		},
 
-		"Modbus INPUT reg": {
-			"prefix": ["MODBUS", "MB", "Input"],
-			"body": ["MODBUS_ADD_LOCAL_I_REG(${1:regName/auto}, ${2:regAddr/auto}, ${3:default})"],
-			"description": "Add local modbus input register"
+		"AO_OUTPUT": {
+			"prefix": ["AO_OUTPUT", "AO"],
+			"body": ["AO_OUTPUT(AO_${1:1}, ${2:0..10000(mV)})"],
+			"description": "Set analog output value in mV"
 		},
 
-		"Modbus DO reg": {
-			"prefix": ["DO", "Coils", "MODBUS", "MB", "DISCRETE"],
-			"body": ["MODBUS_ADD_LOCAL_DISCRETE_REG(${1:regName/auto}, MB_L_DO, ${2:regAddr/auto}, ${3:count}, ${4:default}, ${5:saveToROM})"],
-			"description": "Add local Discrete outputs (Coils) modbus registers"
+
+		"Delay": {
+			"prefix": ["DelayMs"],
+			"body": ["DelayMs(${1:sleepFor(mSec)})"],
+			"description": "Delay current task for (mSec)"
 		},
 
-		"Modbus DI reg": {
-			"prefix":  ["DI", "MODBUS", "MB", "DISCRETE"],
-			"body": ["MODBUS_ADD_LOCAL_DISCRETE_REG(${1:regName/auto}, MB_L_DI, ${2:regAddr/auto}, ${3:count}, ${4:default}, ${5:saveToROM})"],
-			"description": "Add local Discrete outputs (Coils) modbus registers"
+		"UART_CFG": {
+			"prefix": ["UART_CFG", "UART", "CFG"],
+			"body": ["UART_CFG(UART_COM_${1:0}, ${2:9600}, UART_PARITY_${3:NO/EVEN/ODD}, UART_${4:ONE/TWO}_STOPBIT)"],
+			"description": "Set UART config"
 		},
 
-		"Big Endian": {
-			"prefix": ["Endian", "Big"],
-			"body": ["MB_BIG_ENDIAN/MB_BIG_ENDIAN_WORDS/MB_BE_SEQ_LE_WORDS"],
-			"description": "Modbus register data endian type."
-		},
-
-		"Little Endian": {
-			"prefix": ["Endian", "Little"],
-			"body": ["MB_LITTLE_ENDIAN/MB_BE_SEQ_LE_WORDS"],
-			"description": "Modbus register data endian type."
-		},
+		
 
 		"Create Font": {
 			"prefix": ["Create", "Font"],
@@ -173,79 +164,7 @@
 			"body": ["CreateIMG(${1:imageName}, \"./${2:pathToImageFile}\")"],
 			"description": "Create Image from file"
 		},
-
 		
-
-		"struct Remote Module/Device": {
-			"prefix":  ["struct", "remote", "modbus", "slave"],
-			"body": [
-				"struct ${1:deviceStructName} {\n", 
-				"\tMODBUS_MODULE_DECLARE_BEGIN()\n", 
-				"\tMODBUS_ADD_REMOTE_REG($${2:int16}$ ${3:regName/auto}, MB_REM_${4:HOLDING/INPUT/DO/DI}, ${5:regAddr/auto}, ${7:MB_BIG_ENDIAN_WORDS})\n",
-				"\tMODBUS_MODULE_DECLARE_END()\n",
-				"\tfunc init(portNum: uint32, devAddr: uint32, interval: uint32) {\n",
-				"\t\tself.comPort = portNum",
-				"\t\tself.devAddr = devAddr",
-				"\t\tself.interval = interval",
-				"\t\tself.devAddr = devAddr\n",
-				"\t\tMODBUS_MODULE_INIT(self)\n",
-				"\t}",
-				"}"
-
-			],
-			"description": "Modbus template for own struct for slave device"
-		},
-
-
-		"Draw GUI Display Screen": {
-			"prefix":  ["Draw", "GUI", "screen", "display"],
-			"body": [
-				"func Draw${1:SreenName}(ctx: &EG_userContext_t) {\n", 
-				"\tGUI_createContext() $$\n", 
-				"\t${2}",
-				"\tset_font(FONT_DEFAULT) $$", 
-				"\tset_color(COLOR_BLACK, bgColor) $$\n", 
-				"\tlayout(20, 1) $",
-				"\t{\n",
-				"\t\tlable(\"Hello, World\", GUI_ALIGN_CENTER) $$\n",
-				"\t}\n",
-				"\tlayout(80, 1) $",
-				"\t{",
-				"\t\tlist(20, true) $",
-				"\t\t{",
-				"\t\t\trow(false, [80, 20]) $",
-				"\t\t\t{",
-				"\t\t\t\tinput_int(variable, minVal, maxVal, GUI_ALIGN_LEFT, isEditable) $$",
-				"\t\t\t}",
-				"\t\t}",
-				"\t}",
-				"}\n"
-			],
-			"description": "Draw GUI Screen"
-		},
-
-		"Empty Draw GUI Display Screen": {
-			"prefix":  ["Draw", "GUI", "screen", "display"],
-			"body": [
-				"func Draw${1:SreenName}(ctx: &EG_userContext_t) {\n", 
-				"\tGUI_createContext() $$\n",
-				"\t${2}",
-				"}\n"
-			],
-			"description": "Draw GUI Screen"
-		},
-
-		"GUI Button Handler": {
-			"prefix":  ["Button", "GUI", "Handler"],
-			"body": [
-				"GUI_buttonHandler( BUTTON_${1:ESC/ENTER/LEFT/RIGHT/UP/DOWN}, $(${2:isPressed}) {",
-				"\tif ${3:isPressed} {",
-				"\t\t${4}",
-				"\t}",
-				"})"
-			],
-			"description": "GUI Button Handler"
-		},
 
 		"Println": {
 			"prefix":  ["Print"],
@@ -263,8 +182,6 @@
 			"description": "Print template"
 		}
 
-
-		
 
 
 }
