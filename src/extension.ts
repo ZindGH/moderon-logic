@@ -520,9 +520,9 @@ class EEPLColorProvider implements vscode.DocumentColorProvider {
 export function activate(context: vscode.ExtensionContext) {
 
 
-  context.subscriptions.push(
-    vscode.languages.registerColorProvider(
-    { scheme: 'file', language: 'eepl' }, new EEPLColorProvider()));
+  // context.subscriptions.push(
+  //   vscode.languages.registerColorProvider(
+  //   { scheme: 'file', language: 'eepl' }, new EEPLColorProvider()));
 
 
   //console.log("Hello, World!");
@@ -667,8 +667,8 @@ export function activate(context: vscode.ExtensionContext) {
   // //   }
   // // );
 
-  // let disposable = client.start();
-  //   context.subscriptions.push(disposable);
+  let disposable = client.start();
+  // context.subscriptions.push(disposable);
 
   //   this.languageClient.onReady().then(() => {
   //     disposeDidChange.dispose();
