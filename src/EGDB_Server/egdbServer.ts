@@ -84,15 +84,15 @@ export class EGDBServer {
         let baudRateId = this.config.get<string>('eflash.baudrate');
         let parityId = this.config.get<string>('eflash.parity');
         let stopBitsId = this.config.get<string>('eflash.stopbits');
-        
+
 
         const gdbServerPort = this.config.get<number>('gdbserver.port');
         let gdbBaudrate = this.config.get<string>('gdbserver.baudrate');
-        let gdbParity = this.config.get<string>('gdbserver.parity');
-        let gdbStopbits = this.config.get<string>('gdbserver.stopbits');
+        // let gdbParity = this.config.get<string>('gdbserver.parity');
+        // let gdbStopbits = this.config.get<string>('gdbserver.stopbits');
 
         const baudratesMap = new Map<string, string>([
-            ["9600",  "0"],
+            ["9600", "0"],
             ["19200", "1"],
             ["38400", "2"],
             ["115200", "3"],
@@ -100,107 +100,44 @@ export class EGDBServer {
         ]);
 
         const paritiesMap = new Map<string, string>([
-            ["no",  "0"],
+            ["no", "0"],
             ["even", "1"],
             ["odd", "2"]
         ]);
 
         const stopbitsMap = new Map<string, string>([
-            ["1",  "0"],
+            ["1", "0"],
             ["2", "1"]
         ]);
 
 
         baudRateId = baudratesMap.get(baudRateId)!;
         parityId = paritiesMap.get(parityId)!;
-        stopBitsId = stopbitsMap.get(gdbStopbits)!;
+        stopBitsId = stopbitsMap.get(stopBitsId)!;
 
         gdbBaudrate = baudratesMap.get(gdbBaudrate)!;
-        gdbParity = paritiesMap.get(gdbParity)!;
-        gdbStopbits = stopbitsMap.get(gdbStopbits)!;
 
-
-        const client  = new net.Socket();
-
-        client.on('connect', ()=> {
-            console.log("EGDB Client: Client is connected");
-            client.write(this.playloadToMsg(`u2:${portId};${baudRateId}${parityId}${stopBitsId}${gdbBaudrate}${gdbParity}${gdbStopbits}`));
-        });
 
 
         let result: boolean | undefined = undefined;
 
-        client.on('close', (hadError) => {
-            result = !hadError; 
-            console.log("EGDB Client: Client is destroyed");
-        });
-
-        client.on('error', (error) => {
-            console.log("EGDB Client: error");
-            console.log(error);
-            vscode.window.showErrorMessage(`EGDB Server: ${error.message}`);
-            result = false;
-        });
-
-        client.on('timeout', () => {
-            console.log("EGDB Client: timeout");
-            vscode.window.showErrorMessage(`EGDB Server: Timeout connection`);
-            result = false;
-        });
-
-        let bufRx = ""
-        let rxResult = ""
-        client.on('data', (data)=> {
-
-            const msg = data.toString();
-            console.log(msg);
-
-            for (const c of data.toString()) {
-                // if (!bufRx.length && (c == '+' || c == '-')) {
-                //     continue;
-                // }
-                    
-                if (c == '$') {
-                    bufRx = "";
-                    continue;
-                }
-
-                if (c == '#') {
-
-                    rxResult = bufRx;
-
-                    console.log(rxResult);
-
-                    client.write("+");
-
-                    if (rxResult == "OK") {
-                        //vscode.window.showInformationMessage(`EGDB Server: Successfully connected to the Device`);
-                        this.isReady = true;
-                        result = true;
-                    } else {
-                        vscode.window.showErrorMessage(`EGDB Server: Failed connected to the Device`);
-                        result = false;
-                    }
-
-                    continue;
-                }
-                bufRx += c;
-            }
-            
-        });
-
-        // console.log(`Path raw: ${path}`);
-        // console.log(`Path norm: ${nodePath.normalize(path)}`);
-        // console.log(`Path base: ${nodePath.basename(path)}`);
-        // console.log(`Path: ${nodePath.dirname(path)}`);
-        // console.log(`Path norm: ${nodePath.dirname(nodePath.normalize(path))}`);
-
         const promiseExec = new Promise((resolve, reject) => {
 
             const terminal = vscode.window.createTerminal({ name: 'EEmbGdbBridge', pty: this.eGdbTerminal });
-            
 
-            this.egdbServer = cp.spawn(path, ["-p", gdbServerPort.toString(10)], {
+            let argList: string[] =
+                [
+                    "-c", portId,
+                    "-v", "1",
+                    "-p", gdbServerPort.toString(10),
+                    "-F", gdbBaudrate,
+                    "-f", baudRateId,
+                    "-r", parityId,
+                    "-s", stopBitsId,
+                    // "-n", 
+                ];
+
+            this.egdbServer = cp.spawn(path, argList, {
                 stdio: ["ignore", "pipe", "pipe"], cwd: nodePath.dirname(path)
             }).on("error", (err) => {
                 this.isReady = false;
@@ -212,55 +149,40 @@ export class EGDBServer {
                 console.log("eGdbServer is closed");
                 terminal.dispose();
                 this.isReady = false;
-                if (exitCode == 0) {   
+                if (exitCode == 0) {
                     resolve("Done");
                 }
                 else {
                     reject(new Error(`exit code: ${exitCode}.`));
                 }
-            }).on('spawn', ()=>{
+            }).on('spawn', () => {
                 terminal.show();
                 this.eGdbTerminal.clear();
             });
-
-
 
             this.egdbServer.stdout.on("data", (chunk) => {
                 console.log(chunk.toString());
                 this.eGdbTerminal.log(`stdout: ${chunk.toString()}`);
             });
 
-            // this.egdbServer.stdout.on("data", (chunk) => {
-            //     console.log(chunk.toString());
-            // });
 
             const rl = readline.createInterface({ input: this.egdbServer.stderr });
             rl.on("line", (line) => {
-
                 console.log(line);
                 this.eGdbTerminal.log(line);
-
-                if (line.indexOf("INFO gdb-server.c: Listening at") != -1) {
-                    if (result == undefined && !client.connecting) {
-                        client.connect({
-                            port: gdbServerPort
-                        });
-                    }
-                }
-
             });
 
         });
 
-            promiseExec.then(() => {
-                //result = true;
-            }, () => {
-                result = false;
-            }).catch(() => {
-                result = false;
-            });
 
-        
+
+        promiseExec.then(() => {
+            // result = true;
+        }, () => {
+            result = false;
+        }).catch(() => {
+            result = false;
+        });
 
         const prog = await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
@@ -273,29 +195,35 @@ export class EGDBServer {
             token.onCancellationRequested(() => {
                 result = false;
             });
+            var secondsPassed = 0;
+            while (result === undefined && secondsPassed < 5) {
 
-            while (result == undefined) {
+                isServerListening(gdbServerPort).then(isListening => {
+                    if (isListening) {
+                        this.isReady = true;
+                        result = true;
+                        progress.report({ message: "EGDB Server is ready", increment: 100 });
+                    } else {
+                        progress.report({ message: "Waiting for EGDB Server...", increment: 0 });
+                        console.log('Waiting for EGDB Server... (' + secondsPassed + ') seconds');
+                    }
+                });
 
                 if (token.isCancellationRequested) {
-                    result = false;                    
+                    result = false;
                 }
 
-                await new Promise(f => setTimeout(f, 500));
+                await new Promise(f => setTimeout(f, 1000));
+                secondsPassed++;
+
             }
 
             return;
 
         });
 
-        if (!client.destroyed) {
-            client.end();
-            //client.destroy();
-        }
-
         if (!result) {
-            if (this.egdbServer && this.egdbServer.exitCode == null) {
-                this.egdbServer.kill();
-            }
+            this.dropGdbServer();
         }
 
         this.isBusy = false;
@@ -304,34 +232,7 @@ export class EGDBServer {
 
     }
 
-    private playloadToMsg(payload: string) {
 
-        let result = "$";
-        let cksum = 0;
-
-        for (const c of payload) {
-            cksum = (c.charCodeAt(0) + cksum) % 256;
-            result += c
-        }
-
-        result += '#'
-        result += cksum.toString(16).toLowerCase();
-
-        return result;
-    }
-
-
-    // private async getPortList(): Promise<string[]> {
-
-    //     this.portList = [];
-
-    //     const result = await this.executeSever();
-    //     if (!result) {
-    //         return [];
-    //     }
-
-    //     return this.portList;
-    // }
 
 
     private async openWebView() {
@@ -397,28 +298,28 @@ export class EGDBServer {
                             await this.config.set('eflash.parity', parityId);
                             await this.config.set('eflash.stopbits', stopBitsId);
 
-                            
-                            
+
+
                             const baudRateGdbId = message.data.baudRateGdbId;
-                            const parityGdbId = message.data.parityGdbId;
-                            const stopBitsGdbId = message.data.stopBitsGdbId;
+                            // const parityGdbId = message.data.parityGdbId;
+                            // const stopBitsGdbId = message.data.stopBitsGdbId;
 
                             await this.config.set('gdbserver.port', Number.parseInt(serverPortId, 10));
                             await this.config.set('gdbserver.baudrate', baudRateGdbId);
-                            await this.config.set('gdbserver.parity', parityGdbId);
-                            await this.config.set('gdbserver.stopbits', stopBitsGdbId);
+                            // await this.config.set('gdbserver.parity', parityGdbId);
+                            // await this.config.set('gdbserver.stopbits', stopBitsGdbId);
 
                             if (this.panel) {
                                 this.panel.dispose();
                             }
 
-                            const result = this.runGdbServer();//this.executeSever();
-                            
-                            // result.then((val) => {
-                            //     if (!val) {
-                            //         this.openWebView();
-                            //     }
-                            // });
+                            const result = await this.executeSever();
+
+                            if (result) {
+                                runDebug(this.config, false);
+                                return;
+                            }
+
                         })();
                         return;
                     }
@@ -442,16 +343,17 @@ export class EGDBServer {
 
         const gdbServerPort = this.config.get<number>('gdbserver.port');
         const gdbBaudrate = this.config.get<string>('gdbserver.baudrate');
-        const gdbParity = this.config.get<string>('gdbserver.parity');
-        const gdbStopbits = this.config.get<string>('gdbserver.stopbits');
+        // const gdbParity = this.config.get<string>('gdbserver.parity');
+        // const gdbStopbits = this.config.get<string>('gdbserver.stopbits');
 
         this.panel.webview.postMessage({
             command: 'setPortParams', data: {
                 'ports': portList,
                 'portId': portId,
                 'baudRateId': baudRateId, 'parityId': parityId, 'stopBitsId': stopBitsId,
-                'serverPortId':gdbServerPort, 
-                'baudRateGdbId': gdbBaudrate, 'parityGdbId': gdbParity, 'stopBitsGdbId': gdbStopbits
+                'serverPortId': gdbServerPort,
+                'baudRateGdbId': gdbBaudrate
+                //  ,'parityGdbId': gdbParity, 'stopBitsGdbId': gdbStopbits
             }
         });
 
@@ -460,15 +362,7 @@ export class EGDBServer {
 
     public async runGdbServer() {
 
-
-        const result = await this.executeSever();
-        if (result) {
-            runDebug(this.config, false);
-            return;
-        }
-
         this.openWebView();
-
     }
 
     public dropGdbServer() {
@@ -546,27 +440,12 @@ class EEmbGdbBridgeTaskTerminal implements vscode.Pseudoterminal {
         clear: "\x1b[2J\x1b[3J\x1b[;H",
     };
 
-	private writeEmitter = new vscode.EventEmitter<string>();
-	onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-	private closeEmitter = new vscode.EventEmitter<number>();
-	onDidClose?: vscode.Event<number> = this.closeEmitter.event;
+    private writeEmitter = new vscode.EventEmitter<string>();
+    onDidWrite: vscode.Event<string> = this.writeEmitter.event;
+    private closeEmitter = new vscode.EventEmitter<number>();
+    onDidClose?: vscode.Event<number> = this.closeEmitter.event;
 
-	//private fileWatcher: vscode.FileSystemWatcher | undefined;
 
-	// constructor(private workspaceRoot: string, private flavor: string, private flags: string[], private getSharedState: () => string | undefined, private setSharedState: (state: string) => void) {
-	// }
-
-	// open(initialDimensions: vscode.TerminalDimensions | undefined): void {
-	// 	// At this point we can start using the terminal.
-	// 	if (this.flags.indexOf('watch') > -1) {
-	// 		const pattern = nodePath.join(this.workspaceRoot, 'customBuildFile');
-	// 		this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
-	// 		this.fileWatcher.onDidChange(() => this.doBuild());
-	// 		this.fileWatcher.onDidCreate(() => this.doBuild());
-	// 		this.fileWatcher.onDidDelete(() => this.doBuild());
-	// 	}
-	// 	//this.doBuild();
-	// }
 
     constructor(private workspaceRoot: string) {
     }
@@ -585,19 +464,44 @@ class EEmbGdbBridgeTaskTerminal implements vscode.Pseudoterminal {
         //throw new Error('Method not implemented.');
     }
 
-	close(): void {
-		// The terminal has been closed. Shutdown the build.
-		// if (this.fileWatcher) {
-		// 	this.fileWatcher.dispose();
-		// }
-	}
+    close(): void {
+        // The terminal has been closed. Shutdown the build.
+        // if (this.fileWatcher) {
+        // 	this.fileWatcher.dispose();
+        // }
+    }
 
     log(data: string): void {
         this.writeEmitter.fire(`${data}\r\n`);
     }
 
     clear(): void {
-		this.writeEmitter.fire(this.actions.clear);
-	}
+        this.writeEmitter.fire(this.actions.clear);
+    }
 
+}
+
+
+async function isServerListening(port: number, host = '127.0.0.1', timeout = 200): Promise<boolean> {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+
+        socket.setTimeout(timeout);
+
+        socket.once('connect', () => {
+            socket.destroy();
+            resolve(true); // server is listening
+        });
+
+        socket.once('timeout', () => {
+            socket.destroy();
+            resolve(false); // no server
+        });
+
+        socket.once('error', () => {
+            resolve(false); // no server
+        });
+
+        socket.connect(port, host);
+    });
 }
