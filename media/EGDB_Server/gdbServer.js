@@ -10,8 +10,8 @@ const stopBitsId = document.getElementById("stopBitsId-js");
 
 const serverPortId = document.getElementById("serverPortId-js");
 const baudRateGdbId = document.getElementById("baudRateGdbId-js");
-// const parityGdbId = document.getElementById("parityGdbId-js");
-// const stopBitsGdbId = document.getElementById("stopBitsGdbId-js");
+const parityGdbId = document.getElementById("parityGdbId-js");
+const stopBitsGdbId = document.getElementById("stopBitsGdbId-js");
 
 
 
@@ -21,7 +21,7 @@ function flushBtnHandler() {
 		command: 'attach',
 		data: {
 			'portId': portId.value, 'baudRateId': baudRateId.value, 'parityId': parityId.value, 'stopBitsId': stopBitsId.value,
-			'serverPortId': serverPortId.value, 'baudRateGdbId': baudRateGdbId.value //,'parityGdbId': parityGdbId.value, 'stopBitsGdbId': stopBitsGdbId.value
+			'serverPortId': serverPortId.value, 'baudRateGdbId': baudRateGdbId.value, 'parityGdbId': parityGdbId.value, 'stopBitsGdbId': stopBitsGdbId.value 
 		}
 	});
 
@@ -71,8 +71,8 @@ window.addEventListener('message', event => {
 
 				serverPortId.value = message.data.serverPortId;
 				baudRateGdbId.value = message.data.baudRateGdbId;
-				// parityGdbId.value = message.data.parityGdbId;
-				// stopBitsGdbId.value = message.data.stopBitsGdbId;
+				parityGdbId.value = message.data.parityGdbId;
+				stopBitsGdbId.value = message.data.stopBitsGdbId;
 
 				break;
 			}

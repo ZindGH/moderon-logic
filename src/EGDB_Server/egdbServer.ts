@@ -88,8 +88,8 @@ export class EGDBServer {
 
         const gdbServerPort = this.config.get<number>('gdbserver.port');
         let gdbBaudrate = this.config.get<string>('gdbserver.baudrate');
-        // let gdbParity = this.config.get<string>('gdbserver.parity');
-        // let gdbStopbits = this.config.get<string>('gdbserver.stopbits');
+        let gdbParity = this.config.get<string>('gdbserver.parity');
+        let gdbStopbits = this.config.get<string>('gdbserver.stopbits');
 
         const baudratesMap = new Map<string, string>([
             ["9600", "0"],
@@ -116,7 +116,8 @@ export class EGDBServer {
         stopBitsId = stopbitsMap.get(stopBitsId)!;
 
         gdbBaudrate = baudratesMap.get(gdbBaudrate)!;
-
+        gdbParity = paritiesMap.get(gdbParity)!;
+        gdbStopbits = stopbitsMap.get(gdbStopbits)!;
 
 
         let result: boolean | undefined = undefined;
@@ -301,13 +302,13 @@ export class EGDBServer {
 
 
                             const baudRateGdbId = message.data.baudRateGdbId;
-                            // const parityGdbId = message.data.parityGdbId;
-                            // const stopBitsGdbId = message.data.stopBitsGdbId;
+                            const parityGdbId = message.data.parityGdbId;
+                            const stopBitsGdbId = message.data.stopBitsGdbId;
 
                             await this.config.set('gdbserver.port', Number.parseInt(serverPortId, 10));
                             await this.config.set('gdbserver.baudrate', baudRateGdbId);
-                            // await this.config.set('gdbserver.parity', parityGdbId);
-                            // await this.config.set('gdbserver.stopbits', stopBitsGdbId);
+                            await this.config.set('gdbserver.parity', parityGdbId);
+                            await this.config.set('gdbserver.stopbits', stopBitsGdbId);
 
                             if (this.panel) {
                                 this.panel.dispose();
@@ -343,8 +344,8 @@ export class EGDBServer {
 
         const gdbServerPort = this.config.get<number>('gdbserver.port');
         const gdbBaudrate = this.config.get<string>('gdbserver.baudrate');
-        // const gdbParity = this.config.get<string>('gdbserver.parity');
-        // const gdbStopbits = this.config.get<string>('gdbserver.stopbits');
+        const gdbParity = this.config.get<string>('gdbserver.parity');
+        const gdbStopbits = this.config.get<string>('gdbserver.stopbits');
 
         this.panel.webview.postMessage({
             command: 'setPortParams', data: {
@@ -352,8 +353,7 @@ export class EGDBServer {
                 'portId': portId,
                 'baudRateId': baudRateId, 'parityId': parityId, 'stopBitsId': stopBitsId,
                 'serverPortId': gdbServerPort,
-                'baudRateGdbId': gdbBaudrate
-                //  ,'parityGdbId': gdbParity, 'stopBitsGdbId': gdbStopbits
+                'baudRateGdbId': gdbBaudrate,'parityGdbId': gdbParity, 'stopBitsGdbId': gdbStopbits
             }
         });
 
