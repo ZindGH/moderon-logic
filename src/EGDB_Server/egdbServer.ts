@@ -89,7 +89,7 @@ export class EGDBServer {
         const gdbServerPort = this.config.get<number>('gdbserver.port');
         let gdbBaudrate = this.config.get<string>('gdbserver.baudrate');
         let gdbParity = this.config.get<string>('gdbserver.parity');
-        let gdbStopbits = this.config.get<string>('gdbserver.stopbits');
+        let gdbStopBits = this.config.get<string>('gdbserver.stopbits');
 
         const baudratesMap = new Map<string, string>([
             ["9600", "0"],
@@ -117,7 +117,7 @@ export class EGDBServer {
 
         gdbBaudrate = baudratesMap.get(gdbBaudrate)!;
         gdbParity = paritiesMap.get(gdbParity)!;
-        gdbStopbits = stopbitsMap.get(gdbStopbits)!;
+        gdbStopBits = stopbitsMap.get(gdbStopBits)!;
 
 
         let result: boolean | undefined = undefined;
@@ -134,7 +134,9 @@ export class EGDBServer {
                     "-F", gdbBaudrate,
                     "-f", baudRateId,
                     "-r", parityId,
+                    "-R", gdbParity,
                     "-s", stopBitsId,
+                    "-S", gdbStopBits,
                     // "-n", 
                 ];
 
@@ -147,15 +149,26 @@ export class EGDBServer {
                 reject(new Error(`could not launch EEmbGdb Server: ${err}`));
                 //return false;
             }).on("exit", (exitCode, _) => {
-                console.log("eGdbServer is closed");
-                terminal.dispose();
-                this.isReady = false;
-                if (exitCode == 0) {
-                    resolve("Done");
-                }
-                else {
-                    reject(new Error(`exit code: ${exitCode}.`));
-                }
+                setTimeout(() => {
+                    console.log("eGdbServer is closed");
+                    terminal.dispose();
+                    this.isReady = false;
+                    if (exitCode == 0) {
+                        resolve("Done");
+                    }
+                    else {
+                        reject(new Error(`exit code: ${exitCode}.`));
+                    }
+                }, 1000);
+                // console.log("eGdbServer is closed");
+                // terminal.dispose();
+                // this.isReady = false;
+                // if (exitCode == 0) {
+                //     resolve("Done");
+                // }
+                // else {
+                //     reject(new Error(`exit code: ${exitCode}.`));
+                // }
             }).on('spawn', () => {
                 terminal.show();
                 this.eGdbTerminal.clear();
@@ -171,6 +184,12 @@ export class EGDBServer {
             rl.on("line", (line) => {
                 console.log(line);
                 this.eGdbTerminal.log(line);
+
+                // if (line.indexOf("ReplaceMeMark") != -1) {
+                //     if (result == undefined ) {
+                //         result = true;
+                //     }
+                // }
             });
 
         });
@@ -197,13 +216,15 @@ export class EGDBServer {
                 result = false;
             });
             var secondsPassed = 0;
-            while (result === undefined && secondsPassed < 5) {
-
+            while (result === undefined && secondsPassed < 10) {
+                
                 isServerListening(gdbServerPort).then(isListening => {
                     if (isListening) {
                         this.isReady = true;
                         result = true;
                         progress.report({ message: "EGDB Server is ready", increment: 100 });
+                        console.log('GDB Server is ready');
+                        
                     } else {
                         progress.report({ message: "Waiting for EGDB Server...", increment: 0 });
                         console.log('Waiting for EGDB Server... (' + secondsPassed + ') seconds');
@@ -213,9 +234,8 @@ export class EGDBServer {
                 if (token.isCancellationRequested) {
                     result = false;
                 }
-
-                await new Promise(f => setTimeout(f, 1000));
-                secondsPassed++;
+                 await new Promise(f => setTimeout(f, 500));
+                 secondsPassed++;
 
             }
 
