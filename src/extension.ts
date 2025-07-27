@@ -1190,7 +1190,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   vscode.debug.onDidTerminateDebugSession((e) => {
     sbDropDebugger.hide();
-    eGdbServer.dropGdbServer();
+
+    // Add a short delay before dropping the GDB server
+    setTimeout(() => {
+      eGdbServer.dropGdbServer();
+    }, 1000);
+    return;
   });
 
 

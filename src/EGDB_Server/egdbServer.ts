@@ -149,26 +149,16 @@ export class EGDBServer {
                 reject(new Error(`could not launch EEmbGdb Server: ${err}`));
                 //return false;
             }).on("exit", (exitCode, _) => {
-                setTimeout(() => {
-                    console.log("eGdbServer is closed");
-                    terminal.dispose();
-                    this.isReady = false;
-                    if (exitCode == 0) {
-                        resolve("Done");
-                    }
-                    else {
-                        reject(new Error(`exit code: ${exitCode}.`));
-                    }
-                }, 1000);
-                // console.log("eGdbServer is closed");
-                // terminal.dispose();
-                // this.isReady = false;
-                // if (exitCode == 0) {
-                //     resolve("Done");
-                // }
-                // else {
-                //     reject(new Error(`exit code: ${exitCode}.`));
-                // }
+                console.log("eGdbServer is closed");
+                terminal.dispose();
+                this.isReady = false;
+                if (exitCode == 0) {
+                    resolve("Done");
+                }
+                else {
+                    reject(new Error(`exit code: ${exitCode}.`));
+                }
+
             }).on('spawn', () => {
                 terminal.show();
                 this.eGdbTerminal.clear();
@@ -234,7 +224,7 @@ export class EGDBServer {
                 if (token.isCancellationRequested) {
                     result = false;
                 }
-                 await new Promise(f => setTimeout(f, 500));
+                 await new Promise(f => setTimeout(f, 1000));
                  secondsPassed++;
 
             }
