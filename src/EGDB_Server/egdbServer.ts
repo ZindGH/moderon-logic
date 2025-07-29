@@ -44,6 +44,8 @@ export class EGDBServer {
 
     private eGdbTerminal = new EEmbGdbBridgeTaskTerminal("");
 
+    private successLaunch = false;
+
     constructor(
         private readonly config: Config,
         private readonly context: vscode.ExtensionContext,
@@ -207,14 +209,15 @@ export class EGDBServer {
             });
             var secondsPassed = 0;
             while (result === undefined && secondsPassed < 10) {
-                
+
                 isServerListening(gdbServerPort).then(isListening => {
                     if (isListening) {
                         this.isReady = true;
                         result = true;
                         progress.report({ message: "EGDB Server is ready", increment: 100 });
+                        this.successLaunch = true;
                         console.log('GDB Server is ready');
-                        
+
                     } else {
                         progress.report({ message: "Waiting for EGDB Server...", increment: 0 });
                         console.log('Waiting for EGDB Server... (' + secondsPassed + ') seconds');
@@ -224,8 +227,8 @@ export class EGDBServer {
                 if (token.isCancellationRequested) {
                     result = false;
                 }
-                 await new Promise(f => setTimeout(f, 1000));
-                 secondsPassed++;
+                await new Promise(f => setTimeout(f, 1000));
+                secondsPassed++;
 
             }
 
@@ -234,6 +237,7 @@ export class EGDBServer {
         });
 
         if (!result) {
+            this.successLaunch = false;
             this.dropGdbServer();
         }
 
@@ -324,12 +328,7 @@ export class EGDBServer {
                                 this.panel.dispose();
                             }
 
-                            const result = await this.executeSever();
-
-                            if (result) {
-                                runDebug(this.config, false);
-                                return;
-                            }
+                            if ((await this.launchDebug()).valueOf() == true){return;}
 
                         })();
                         return;
@@ -363,16 +362,26 @@ export class EGDBServer {
                 'portId': portId,
                 'baudRateId': baudRateId, 'parityId': parityId, 'stopBitsId': stopBitsId,
                 'serverPortId': gdbServerPort,
-                'baudRateGdbId': gdbBaudrate,'parityGdbId': gdbParity, 'stopBitsGdbId': gdbStopbits
+                'baudRateGdbId': gdbBaudrate, 'parityGdbId': gdbParity, 'stopBitsGdbId': gdbStopbits
             }
         });
 
     }
+    public async launchDebug() : Promise<boolean>{
+        const result = await this.executeSever();
 
+        if (result) {
+            runDebug(this.config, false); 
+        }
+        return result;
+    }
 
     public async runGdbServer() {
-
-        this.openWebView();
+        if (!this.successLaunch){
+            this.openWebView();
+        } else{
+            this.launchDebug();
+        }
     }
 
     public dropGdbServer() {
