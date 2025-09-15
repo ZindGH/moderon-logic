@@ -368,7 +368,7 @@ export class EGDBServer {
 
     }
     public async launchDebug() : Promise<boolean>{
-        const result = await this.executeSever();
+        const result = true; // await this.executeSever();
 
         if (result) {
             runDebug(this.config, false); 

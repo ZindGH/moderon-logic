@@ -244,7 +244,15 @@ export async function runDebug(config: Config, isSimulator: boolean) {
     gdbPath: pathToArmToolchain,
     gdbTarget: `localhost:${gdbServerPort}`,
     //gdbTarget: "localhost:4242",
-    showDevDebugOutput: "raw"
+    showDevDebugOutput: "raw",
+    liveWatch : {
+      samplesPerSecond: 1,
+      enabled: true
+    },
+
+     liveWatchRefreshRate: "1000",
+     liveWatchEnabled: true,
+    demangle: true
     //preLaunchTask: "st-util"
   };
 
